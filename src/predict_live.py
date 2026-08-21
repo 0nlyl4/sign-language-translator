@@ -2,8 +2,9 @@ import cv2
 import mediapipe as mp
 import joblib
 import numpy as np
+from features import normalize_landmarks
 
-MODEL_PATH = "models/model_batch1.pkl"
+MODEL_PATH = "models/model.pkl"
 
 model = joblib.load(MODEL_PATH)
 print(f"Model loaded. Knows: {list(model.classes_)}")
@@ -42,7 +43,7 @@ while True:
         for lm in landmarks.landmark:
             row += [lm.x, lm.y, lm.z]
 
-        features = np.array(row).reshape(1, -1)
+        features = normalize_landmarks(row).reshape(1, -1)
         prediction = model.predict(features)[0]
         confidence = model.predict_proba(features).max()
 
