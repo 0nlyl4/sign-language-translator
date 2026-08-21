@@ -2,12 +2,22 @@ import cv2
 import mediapipe as mp
 import joblib
 import numpy as np
+
 from features import normalize_landmarks
 
+
 MODEL_PATH = "models/model.pkl"
+CAMERA_INDEX = 0
+CONFIDENCE_THRESHOLD = 0.70
+
+GREEN = (0, 255, 0)
+RED = (0, 0, 255)
+
 
 model = joblib.load(MODEL_PATH)
 print(f"Model loaded. Knows: {list(model.classes_)}")
+print(f"Confidence threshold: {CONFIDENCE_THRESHOLD:.0%}")
+
 
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
@@ -19,12 +29,14 @@ hands = mp_hands.Hands(
     min_tracking_confidence=0.5
 )
 
-cap = cv2.VideoCapture(0)
+
+cap = cv2.VideoCapture(CAMERA_INDEX)
 if not cap.isOpened():
     print("Error: Could not open camera")
     exit()
 
 print("Running. Press 'q' to quit.")
+
 
 while True:
     success, frame = cap.read()
@@ -44,21 +56,30 @@ while True:
             row += [lm.x, lm.y, lm.z]
 
         features = normalize_landmarks(row).reshape(1, -1)
+
         prediction = model.predict(features)[0]
         confidence = model.predict_proba(features).max()
 
-        cv2.putText(frame, prediction, (250, 120),
-                    cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 255, 0), 8)
+        if confidence >= CONFIDENCE_THRESHOLD:
+            display_text = prediction
+            color = GREEN
+        else:
+            display_text = "?"
+            color = RED
+
+        cv2.putText(frame, display_text, (250, 120),
+                    cv2.FONT_HERSHEY_SIMPLEX, 4, color, 8)
         cv2.putText(frame, f"{confidence:.0%}", (250, 170),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
     else:
         cv2.putText(frame, "No hand", (10, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, RED, 2)
 
     cv2.imshow("Sign Language Translator", frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+
 
 cap.release()
 cv2.destroyAllWindows()
