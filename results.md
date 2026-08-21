@@ -67,3 +67,36 @@ feature change was involved. Cross-session accuracy went from 79.8% to 99.8%.
   and environments would give a more reliable estimate.
 - **Rotation sensitivity.** Normalization handles translation and scale but
   not wrist rotation.
+
+  ## Experiment 6 — Confidence Threshold
+
+Motivation: the classifier is forced to return one of its known classes on
+every frame. Untrained hand shapes and mid-transition frames were displayed
+as confident predictions. Measured the confidence distribution across three
+conditions to select a rejection threshold instead of guessing one.
+
+| Condition                    | Confidence range |
+|------------------------------|------------------|
+| Trained letter, held steady  | 100%             |
+| Transition between two signs | 24% – 64%        |
+| Untrained hand shape         | ~27%             |
+
+Gap: 64% – 100%.
+
+Threshold selected: 80%. Placed above the highest observed transition frame
+(64%) with a 16-point safety margin, and well below the confidence of held
+signs. A tighter threshold such as 70% risks admitting transition frames;
+a stricter one such as 95% would suppress correct predictions once the
+class count grows and votes split across visually similar letters
+(U / V / R in batch 3).
+
+Behaviour: predictions below the threshold render as "?" in red instead of
+a letter in green.
+
+Trade-off: a small number of correct low-confidence predictions are
+suppressed in exchange for eliminating confidently-wrong output. For a
+user-facing system, showing nothing is preferable to showing a wrong letter
+with full certainty.
+
+Caveat: the 100% figure reflects only 5 well-separated classes. This
+threshold should be re-measured after each new batch of letters is added.

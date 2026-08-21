@@ -8,7 +8,7 @@ from features import normalize_landmarks
 
 MODEL_PATH = "models/model.pkl"
 CAMERA_INDEX = 0
-CONFIDENCE_THRESHOLD = 0.70
+CONFIDENCE_THRESHOLD = 0.80
 
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
