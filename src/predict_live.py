@@ -3,12 +3,14 @@ import mediapipe as mp
 import joblib
 import numpy as np
 
+from collections import deque, Counter
 from features import normalize_landmarks
 
 
 MODEL_PATH = "models/model.pkl"
 CAMERA_INDEX = 0
 CONFIDENCE_THRESHOLD = 0.80
+SMOOTHING_WINDOW = 10
 
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
@@ -17,6 +19,7 @@ RED = (0, 0, 255)
 model = joblib.load(MODEL_PATH)
 print(f"Model loaded. Knows: {list(model.classes_)}")
 print(f"Confidence threshold: {CONFIDENCE_THRESHOLD:.0%}")
+print(f"Smoothing window: {SMOOTHING_WINDOW} frames")
 
 
 mp_hands = mp.solutions.hands
@@ -36,6 +39,8 @@ if not cap.isOpened():
     exit()
 
 print("Running. Press 'q' to quit.")
+
+history = deque(maxlen=SMOOTHING_WINDOW)
 
 
 while True:
@@ -61,7 +66,14 @@ while True:
         confidence = model.predict_proba(features).max()
 
         if confidence >= CONFIDENCE_THRESHOLD:
-            display_text = prediction
+            history.append(prediction)
+        else:
+            history.append(None)
+
+        stable_letter, votes = Counter(history).most_common(1)[0]
+
+        if stable_letter is not None:
+            display_text = stable_letter
             color = GREEN
         else:
             display_text = "?"
@@ -71,7 +83,10 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 4, color, 8)
         cv2.putText(frame, f"{confidence:.0%}", (250, 170),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+        cv2.putText(frame, f"{votes}/{len(history)}", (250, 210),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
     else:
+        history.clear()
         cv2.putText(frame, "No hand", (10, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, RED, 2)
 

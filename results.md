@@ -100,3 +100,24 @@ with full certainty.
 
 Caveat: the 100% figure reflects only 5 well-separated classes. This
 threshold should be re-measured after each new batch of letters is added.
+
+## Experiment 7 — Temporal Smoothing
+
+Motivation: each frame was classified independently, with no memory of the
+previous frame. A single misread frame or slight hand tremor changed the
+on-screen output, producing visible flicker on a steadily held sign.
+
+Method: majority vote over a sliding window of the last N predictions
+(collections.deque with maxlen=N). Frames below the confidence threshold
+are pushed into the window as an explicit rejection vote rather than being
+discarded, so the display does not keep showing a stale letter after the
+hand has moved on. The window is cleared when the hand leaves the frame.
+
+Window size: 10 frames (~__ ms at 30 fps)
+
+Result: a held sign reaches a full N/N majority and remains stable. Isolated
+misread frames are absorbed by the vote and never reach the display.
+
+Trade-off: adds roughly N/30 seconds of latency before a new letter appears.
+This is acceptable, and in practice desirable, since it also suppresses the
+transient letters produced while moving between two signs.
