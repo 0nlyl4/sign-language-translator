@@ -103,8 +103,7 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 4, color, 8)
         cv2.putText(frame, f"{confidence:.0%}", (250, 170),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-        cv2.putText(frame, f"{votes}/{len(history)}", (250, 210),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+        
 
         if stable_letter is not None:
             progress = min(hold_count / HOLD_FRAMES, 1.0)
