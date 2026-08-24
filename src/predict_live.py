@@ -11,15 +11,20 @@ MODEL_PATH = "models/model.pkl"
 CAMERA_INDEX = 0
 CONFIDENCE_THRESHOLD = 0.80
 SMOOTHING_WINDOW = 10
+HOLD_FRAMES = 25
 
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
 
 
 model = joblib.load(MODEL_PATH)
 print(f"Model loaded. Knows: {list(model.classes_)}")
 print(f"Confidence threshold: {CONFIDENCE_THRESHOLD:.0%}")
 print(f"Smoothing window: {SMOOTHING_WINDOW} frames")
+print(f"Hold to commit: {HOLD_FRAMES} frames")
+print("Keys: [space] space   [backspace] delete   [c] clear   [q] quit")
 
 
 mp_hands = mp.solutions.hands
@@ -38,9 +43,13 @@ if not cap.isOpened():
     print("Error: Could not open camera")
     exit()
 
-print("Running. Press 'q' to quit.")
+print("Running.")
 
 history = deque(maxlen=SMOOTHING_WINDOW)
+sentence = ""
+hold_letter = None
+hold_count = 0
+committed = False
 
 
 while True:
@@ -72,6 +81,17 @@ while True:
 
         stable_letter, votes = Counter(history).most_common(1)[0]
 
+        if stable_letter == hold_letter:
+            hold_count += 1
+        else:
+            hold_letter = stable_letter
+            hold_count = 1
+            committed = False
+
+        if stable_letter is not None and not committed and hold_count >= HOLD_FRAMES:
+            sentence += stable_letter
+            committed = True
+
         if stable_letter is not None:
             display_text = stable_letter
             color = GREEN
@@ -85,16 +105,38 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
         cv2.putText(frame, f"{votes}/{len(history)}", (250, 210),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+
+        if stable_letter is not None:
+            progress = min(hold_count / HOLD_FRAMES, 1.0)
+            cv2.rectangle(frame, (250, 230), (400, 245), color, 1)
+            cv2.rectangle(frame, (250, 230), (250 + int(150 * progress), 245),
+                          color, -1)
     else:
         history.clear()
+        hold_letter = None
+        hold_count = 0
+        committed = False
         cv2.putText(frame, "No hand", (10, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, RED, 2)
 
+    h, w = frame.shape[:2]
+    cv2.rectangle(frame, (0, h - 60), (w, h), BLACK, -1)
+    cv2.putText(frame, sentence[-20:], (10, h - 20),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.2, WHITE, 2)
+
     cv2.imshow("Sign Language Translator", frame)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('q'):
         break
+    elif key == 32:
+        sentence += " "
+    elif key == 8:
+        sentence = sentence[:-1]
+    elif key == ord('c'):
+        sentence = ""
 
 
 cap.release()
 cv2.destroyAllWindows()
+print(f"Final output: {sentence}")

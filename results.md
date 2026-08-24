@@ -121,3 +121,48 @@ misread frames are absorbed by the vote and never reach the display.
 Trade-off: adds roughly N/30 seconds of latency before a new letter appears.
 This is acceptable, and in practice desirable, since it also suppresses the
 transient letters produced while moving between two signs.
+
+## Experiment 8 — Letter Commit and Word Assembly
+
+Motivation: the smoothed classifier produced a stable letter on every frame
+but had no notion of user intent. Appending that letter directly would
+repeat the same character roughly 30 times per second while the hand was
+held in place.
+
+Method: two mechanisms on top of the smoothed prediction.
+
+1. Hold — a letter is committed to the output string only after remaining
+   stable for HOLD_FRAMES consecutive frames.
+2. Latch — once committed, the letter is locked and cannot be committed
+   again until the stable prediction changes.
+
+The hold separates an intentional sign from letters that appear briefly
+while moving between signs. The latch prevents a single held sign from
+being appended repeatedly. A progress bar renders the hold counter so the
+commit state is visible to the user rather than implicit. Keyboard controls
+provide space, backspace and clear; the assembled string is printed on exit.
+
+Hold duration: 25 frames (~830 ms at 30 fps)
+
+Tuned from an initial 15 frames (~500 ms) after hands-on use. The shorter
+hold committed unintended letters during slow transitions between signs,
+and left too little margin to abort a sign once started. 25 frames removed
+the unintended commits without the input feeling unresponsive.
+
+Known limitation: doubled letters (e.g. "LL") require breaking the hand
+shape between repetitions, since the latch releases only on a change in the
+stable prediction. This is inherent to hold-to-commit fingerspelling input
+and would require an explicit repeat gesture or a timed re-arm to resolve.
+
+## Pipeline Summary (Phase 7)
+
+Each stage addresses a failure mode of the stage before it.
+
+| Stage      | Input              | Output           | Problem solved                    |
+|------------|--------------------|------------------|-----------------------------------|
+| Landmarks  | Camera frame       | 63 coordinates   | Lighting and background variance  |
+| Normalize  | 63 raw coordinates | 63 normalized    | Hand position and distance        |
+| Classify   | 63 normalized      | Letter + score   | Shape recognition                 |
+| Threshold  | Letter + score     | Letter or reject | Confident output on unknown input |
+| Smooth     | Per-frame letters  | Stable letter    | Frame-to-frame flicker            |
+| Commit     | Stable letter      | Output string    | Intent vs. continuous presence    |
