@@ -166,3 +166,6 @@ Each stage addresses a failure mode of the stage before it.
 | Threshold  | Letter + score     | Letter or reject | Confident output on unknown input |
 | Smooth     | Per-frame letters  | Stable letter    | Frame-to-frame flicker            |
 | Commit     | Stable letter      | Output string    | Intent vs. continuous presence    |
+
+
+| 6 | batch1 | batch2 | normalized, 11 classes | 53.3% | 9.1% |
