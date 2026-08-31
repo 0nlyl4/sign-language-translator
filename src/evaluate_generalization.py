@@ -1,6 +1,9 @@
+import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+from features import normalize_landmarks
 
 CSV_PATH = "data/landmarks.csv"
 
@@ -12,9 +15,11 @@ test_df = df[df["batch"] == 2]
 print(f"Train (session 1): {len(train_df)} samples")
 print(f"Test  (session 2): {len(test_df)} samples")
 
-X_train = train_df.drop(columns=["label", "batch"])
+X_train = np.array([normalize_landmarks(r)
+                    for r in train_df.drop(columns=["label", "batch"]).values])
 y_train = train_df["label"]
-X_test = test_df.drop(columns=["label", "batch"])
+X_test = np.array([normalize_landmarks(r)
+                   for r in test_df.drop(columns=["label", "batch"]).values])
 y_test = test_df["label"]
 
 model = RandomForestClassifier(n_estimators=100, random_state=42)
@@ -35,8 +40,7 @@ print(classification_report(y_test, y_pred))
 
 print("Confusion matrix:")
 labels = sorted(y_train.unique())
-print("      " + "   ".join(labels))
+print("     " + "  ".join(labels))
 cm = confusion_matrix(y_test, y_pred, labels=labels)
 for i, row in enumerate(cm):
     print(f"{labels[i]}  " + "  ".join(f"{v:3d}" for v in row))
-

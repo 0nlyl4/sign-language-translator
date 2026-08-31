@@ -9,7 +9,7 @@ from features import normalize_landmarks
 
 MODEL_PATH = "models/model.pkl"
 CAMERA_INDEX = 0
-CONFIDENCE_THRESHOLD = 0.80
+CONFIDENCE_THRESHOLD = 0.55
 SMOOTHING_WINDOW = 10
 HOLD_FRAMES = 25
 
