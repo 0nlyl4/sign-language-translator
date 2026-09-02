@@ -8,6 +8,7 @@ import time
 SAMPLES_PER_LETTER = 300
 COUNTDOWN_SECONDS = 3
 CSV_PATH = "data/landmarks.csv"
+VALID_BATCHES = ("1", "2")
 # ------------------------------
 
 mp_hands = mp.solutions.hands
@@ -29,6 +30,24 @@ def create_csv_if_needed():
         with open(CSV_PATH, "w", newline="") as f:
             csv.writer(f).writerow(header)
         print(f"Created {CSV_PATH}")
+
+
+def ask_batch():
+    while True:
+        value = input("Batch (1 or 2): ").strip()
+        if value in VALID_BATCHES:
+            return value
+        print(f"Invalid batch '{value}'. Enter 1 or 2 only.")
+
+
+def ask_label():
+    while True:
+        value = input("\nLetter (or 'exit' to quit): ").strip().upper()
+        if value == "EXIT":
+            return None
+        if len(value) == 1 and value.isalpha():
+            return value
+        print("Enter a single letter A-Z.")
 
 
 def extract_landmarks(hand_landmarks):
@@ -68,7 +87,7 @@ def collect(label, batch):
             if remaining > 0:
                 cv2.putText(frame, str(remaining), (280, 250),
                             cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 255, 255), 6)
-                cv2.putText(frame, f"Get ready: {label}", (10, 40),
+                cv2.putText(frame, f"Get ready: {label}  (batch {batch})", (10, 40),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
             else:
                 state = "capturing"
@@ -80,13 +99,15 @@ def collect(label, batch):
             count = len(collected)
             cv2.putText(frame, f"{label}:  {count}/{SAMPLES_PER_LETTER}", (10, 40),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(frame, f"batch {batch}", (10, 110),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
             bar_width = int((count / SAMPLES_PER_LETTER) * 400)
             cv2.rectangle(frame, (10, 60), (410, 85), (80, 80, 80), -1)
             cv2.rectangle(frame, (10, 60), (10 + bar_width, 85), (0, 255, 0), -1)
 
             if not hand_found:
-                cv2.putText(frame, "NO HAND - paused", (10, 120),
+                cv2.putText(frame, "NO HAND - paused", (10, 145),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
             if count >= SAMPLES_PER_LETTER:
@@ -113,15 +134,14 @@ def collect(label, batch):
 def main():
     create_csv_if_needed()
 
-    batch = input("Batch number: ").strip()
+    batch = ask_batch()
+    print(f"Recording session: batch {batch}")
 
     while True:
-        label = input("\nLetter (or 'exit' to quit): ").strip().upper()
-        if label == "EXIT":
+        label = ask_label()
+        if label is None:
             break
-        if len(label) != 1:
-            print("Enter a single letter.")
-            continue
+        print(f"-> {label}, batch {batch}")
         collect(label, batch)
 
     print("\nDone.")
