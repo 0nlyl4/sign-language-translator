@@ -9,9 +9,9 @@ from features import normalize_landmarks
 
 MODEL_PATH = "models/model.pkl"
 CAMERA_INDEX = 0
-CONFIDENCE_THRESHOLD = 0.65
-SMOOTHING_WINDOW = 10
-HOLD_FRAMES = 25
+CONFIDENCE_THRESHOLD = 0.55
+SMOOTHING_WINDOW = 7
+HOLD_FRAMES = 15
 
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
@@ -71,8 +71,10 @@ while True:
 
         features = normalize_landmarks(row).reshape(1, -1)
 
-        prediction = model.predict(features)[0]
-        confidence = model.predict_proba(features).max()
+        probs = model.predict_proba(features)[0]
+        best = probs.argmax()
+        prediction = model.classes_[best]
+        confidence = probs[best]
 
         if confidence >= CONFIDENCE_THRESHOLD:
             history.append(prediction)
@@ -103,7 +105,6 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 4, color, 8)
         cv2.putText(frame, f"{confidence:.0%}", (250, 170),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-        
 
         if stable_letter is not None:
             progress = min(hold_count / HOLD_FRAMES, 1.0)
