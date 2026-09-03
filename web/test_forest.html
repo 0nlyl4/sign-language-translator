@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Forest Test</title>
+  <style>
+    body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
+    pre { font-size: 14px; line-height: 1.6; }
+    .ok { color: #4ade80; }
+    .bad { color: #f87171; }
+  </style>
+</head>
+<body>
+  <h3>Forest Walk Test</h3>
+  <pre id="output">loading...</pre>
+
+<script type="module">
+
+const output = document.getElementById("output");
+
+function walkTree(tree, x) {
+  let node = 0;
+  while (tree.f[node] !== -1) {
+    if (x[tree.f[node]] <= tree.t[node]) {
+      node = tree.l[node];
+    } else {
+      node = tree.r[node];
+    }
+  }
+  return tree.v[node];
+}
+
+function predictProba(forest, x) {
+  const votes = new Array(forest.classes.length).fill(0);
+  for (const tree of forest.trees) {
+    votes[walkTree(tree, x)] += 1;
+  }
+  return votes.map(v => v / forest.trees.length);
+}
+
+const forest = await (await fetch("model.json")).json();
+const samples = await (await fetch("test_samples.json")).json();
+
+let lines = [];
+lines.push(`trees: ${forest.trees.length}   classes: ${forest.classes.length}`);
+lines.push(`samples: ${samples.length}`);
+lines.push("");
+
+let mismatches = 0;
+let maxDiff = 0;
+
+for (const s of samples) {
+  const probs = predictProba(forest, s.normalized);
+
+  let best = 0;
+  for (let i = 1; i < probs.length; i++) {
+    if (probs[i] > probs[best]) best = i;
+  }
+
+  const letter = forest.classes[best];
+  const conf = probs[best];
+
+  const diff = Math.abs(conf - s.expected_confidence);
+  if (diff > maxDiff) maxDiff = diff;
+
+  const match = letter === s.expected_letter && diff < 1e-9;
+  if (!match) mismatches++;
+
+  lines.push(
+    `${match ? "OK  " : "FAIL"}  ` +
+    `python: ${s.expected_letter} ${s.expected_confidence.toFixed(4)}   ` +
+    `js: ${letter} ${conf.toFixed(4)}`
+  );
+}
+
+lines.push("");
+lines.push(`mismatches: ${mismatches} / ${samples.length}`);
+lines.push(`max confidence diff: ${maxDiff}`);
+lines.push("");
+lines.push(mismatches === 0
+  ? "FOREST WALK IS EXACT"
+  : "FOREST WALK DOES NOT MATCH");
+
+output.textContent = lines.join("\n");
+output.className = mismatches === 0 ? "ok" : "bad";
+
+</script>
+</body>
+</html>
