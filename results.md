@@ -168,4 +168,226 @@ Each stage addresses a failure mode of the stage before it.
 | Commit     | Stable letter      | Output string    | Intent vs. continuous presence    |
 
 
-| 6 | batch1 | batch2 | normalized, 11 classes | 53.3% | 9.1% |
+| 6 | batch1 | batch2 | raw (mislabelled - see Exp 10) | 53.3% | 9.1% |
+
+# Phase 8 — Scaling from 5 to 22 classes
+
+## Experiment 9 — First expansion: a data-consistency collapse
+
+Added D E F G H I, bringing the model to 11 classes. Cross-session accuracy
+dropped to 53.3% (baseline 9.1%).
+
+The six new letters scored 88–100%. Three of the five original letters
+collapsed: A 1%, Y 0%, L 56%. Their data had not changed — only the class
+count had — so the drop could not be caused by the new letters being harder.
+
+Diagnosis via four train/test splits:
+
+| Split            | Result                                   |
+|------------------|------------------------------------------|
+| Within session 1 | 100% on all 11 letters                   |
+| Within session 2 | 100% on all 11 letters                   |
+| Session 1 -> 2   | 77.0% — A, L, Y fail; all others 100%    |
+| Session 2 -> 1   | 63.6% — same three letters fail          |
+
+Perfect within-session separation rules out feature-space overlap: if A and E
+were genuinely similar as vectors, they would be confused within a session
+too. The failure is inconsistent labelling — one class name recorded with two
+different hand shapes across sessions.
+
+The three failing letters were the only ones recorded without a saved
+reference screenshot. The six recorded with references held up, as did C,
+which had been re-recorded to a fixed reference after an earlier identical
+failure. Reference screenshots became mandatory from this point.
+
+## Experiment 10 — The evaluation script was measuring the wrong pipeline
+
+Successive re-recordings moved cross-session accuracy from 53.3% to 68.0% to
+57.76%. Two letters were re-recorded on the basis of these numbers.
+
+The numbers were wrong. An independent diagnostic script performing the
+identical train/test split returned 100% where the evaluation script returned
+57.76%. Two scripts doing the same thing cannot disagree; one was measuring
+something else.
+
+Cause: evaluate_generalization.py was written during Experiment 2, when raw
+coordinates were the input. When normalisation was introduced in Phase 6,
+train_model.py and predict_live.py were updated; the evaluation script was
+not. It had been reporting raw-coordinate performance ever since — which is
+why its numbers sat in the 47–68% band already established for raw features.
+
+| Split                  | Before fix | After fix |
+|------------------------|-----------:|----------:|
+| Session 1 -> Session 2 |     57.76% |   100.00% |
+
+This is the same principle already documented for this project —
+normalisation must be applied identically everywhere — surfacing in a file
+that was overlooked because it consumes the pipeline rather than defining it.
+It was caught only because two independent scripts disagreed. A single
+measurement cannot be checked against itself.
+
+## Experiment 11 — Camera position breaks generalisation
+
+Training on session 1 and testing on session 2 gave 100.00% at 11 classes.
+Reversing the direction gave 84.2%, with A -> E, B -> F and D -> L failures,
+while within-session accuracy stayed at 100%.
+
+The asymmetry traces to a mid-project change in camera position: the iPad was
+moved from one side of the subject to the other between sessions. The current
+normalisation handles translation and scale, not rotation, so the same hand
+shape viewed from the opposite side produces a different 63-number vector.
+
+This is a direct empirical measurement of a limitation that was documented
+before it was observed.
+
+Recording protocol updated: lighting, distance, background and hand tilt may
+vary between sessions; camera position relative to the subject may not.
+
+## Experiment 12 — Confidence threshold is class-count dependent
+
+The 0.80 threshold was tuned when the model had 5 classes and correct
+predictions carried ~100% confidence. With more classes, probability mass
+spreads across more options and correct predictions score lower.
+
+| Classes | 5th pct. confidence (correct) | Threshold | Coverage |
+|--------:|------------------------------:|----------:|---------:|
+|       5 |                          ~1.00 |      0.80 |      n/a |
+|      11 |                          0.47  |      0.50 |    91.5% |
+|      16 |                          0.44  |      0.55 |    87.0% |
+|      19 |                          0.40  |      0.55 |    85.8% |
+
+At 11 classes the inherited 0.80 threshold was suppressing 25.1% of correct
+predictions. Selection rule: the lowest threshold giving >=97% accuracy on
+shown predictions with >=85% coverage.
+
+At 16 classes the tuning table became genuinely informative for the first
+time: with real errors present, raising the threshold improved accuracy on
+shown predictions rather than only suppressing correct ones.
+
+Note: some incorrect predictions carry confidence up to 0.87 (95th
+percentile). A threshold cannot remove genuine class confusion — it rejects
+unknown input, not misclassification.
+
+## Experiment 13 — Adding similar classes can sharpen boundaries
+
+K scored 82% at 16 classes, with K -> G as the dominant error. After adding
+U, V and R — three more members of the two-fingers-raised family — K rose to
+97% and K -> G fell to zero.
+
+Additional examples of a crowded region gave the classifier more information
+about where the boundary lies, rather than blurring it. Class similarity is
+not by itself a reason to expect degradation.
+
+## Experiment 14 — U, V and R are points on a continuum
+
+At 19 classes, R was the weakest letter (f1 0.82), confused with U in one
+direction only: R->U 84, U->R 8. Within-session accuracy was 100% for all
+letters, ruling out feature-space overlap.
+
+A live top-2 probability overlay showed V at 0.98 when the fingers are
+clearly spread, and U:0.49 / V:0.31 when the spread is marginal. U, V and R
+differ only in finger separation — crossed, together, apart — which is a
+continuum rather than three separable regions. Marginal separations fall near
+the U/V boundary by construction.
+
+The perceived sluggishness during live use was the threshold correctly
+rejecting an ambiguous shape, not latency. Live smoothing and hold were
+retuned from (10, 25) to (7, 15), since the values had been set when the
+model had 5 classes and predictions never wavered.
+
+## Experiment 15 — Recording variation, not recording shape
+
+Both R and K failed asymmetrically at some point: the model trained on
+session 2 recognised session 1 at 98–100%, while the reverse gave 63–75%.
+Within-session accuracy was 100% in every case.
+
+The cause is not an inconsistent shape but an insufficiently varied one.
+Session 2 was recorded across a wider range of wrist angles and distances,
+covering session 1's narrower distribution; session 1 does not cover session
+2's.
+
+An attempt to fix K by re-recording session 1 "with wider variation" sent K
+to 0%, with all 300 samples classified as D. Widening the variation had
+changed the finger position rather than the viewing conditions. Re-recording
+both sessions with a fixed shape and varied wrist angle restored K to 100%.
+
+Variation means wrist rotation, distance and tilt. It does not mean varying
+the hand shape.
+
+## Experiment 16 — Re-recording three letters at the current camera position
+
+A and B had been recorded before the camera-position change and collapsed in
+the reverse direction (A 4% -> I, B 0% -> W). After adding S and T — two more
+closed-fist shapes — A collapsed entirely in both directions (A -> S 181,
+A -> T 119), dragging S and T's precision down to 0.62 and 0.71.
+
+Re-recording A alone at the current camera position fixed three letters at
+once: A returned to 100%, and S and T rose to 1.00 and 0.98 precision as they
+stopped absorbing it. Overall accuracy rose from 91.20% to 94.48%.
+
+Re-recording B and K completed the cleanup:
+
+| Change                          | Accuracy |
+|---------------------------------|---------:|
+| 22 classes, A/B/K legacy data   |   91.20% |
+| After re-recording A            |   94.48% |
+| After re-recording B and K      |   96.97% |
+
+Session symmetry, which measures whether any letter's data is direction-
+dependent:
+
+| Stage                        | 1 -> 2 | 2 -> 1 | Gap  |
+|------------------------------|-------:|-------:|-----:|
+| B still on old camera data   |  94.5% |  86.1% |  8.4 |
+| 19 classes, before cleanup   |  94.5% |  91.9% |  2.6 |
+| 22 classes, after cleanup    |  97.0% |  96.8% |  0.2 |
+
+The gap closing to 0.2 points is direct evidence that the camera-position
+artefact has been removed from the dataset.
+
+## Phase 8 result
+
+| Classes | Accuracy | Baseline | Ratio |
+|--------:|---------:|---------:|------:|
+|       5 |    99.8% |    20.0% |  x5.0 |
+|      11 |   100.0% |     9.1% | x11.0 |
+|      16 |    96.0% |     6.3% | x15.4 |
+|      19 |    94.9% |     5.3% | x18.0 |
+|      22 |    97.0% |     4.6% | x21.3 |
+
+All 22 letters separate perfectly within a single recording session. The
+remaining cross-session error is concentrated in R (75% recall, confused
+with U), which is the continuum problem described in Experiment 14.
+
+Live settings, all measured rather than guessed:
+confidence threshold 0.55, smoothing window 7 frames, hold-to-commit 15
+frames.
+
+## Tooling hardened during Phase 8
+
+Two data-loss incidents and three mis-entered batch numbers were caused by
+tools that trusted the operator rather than validating input.
+
+- clean_label.py had the target label hard-coded, and deleted that label on
+  every run regardless of intent. It now prompts for the label, accepts an
+  optional batch filter, requires the label to be typed twice, and writes a
+  backup before deleting.
+- collect_data.py accepted any batch number. A double keypress produced
+  batch 11 three times, which silently excludes the letter from both the
+  training and test split. It now accepts only 1 or 2, and displays the
+  active batch on screen throughout recording.
+
+## Known limitations
+
+- J and Z excluded (require motion; need a sequential model)
+- M and N not yet attempted: the distinguishing feature is thumb position
+  beneath the fingers, which is occluded from the camera, so MediaPipe infers
+  rather than measures those landmarks
+- Single hand only; does not work mirrored
+- Normalisation handles translation and scale, not rotation
+- Two recording sessions, one signer
+- U/V/R separation degrades on marginal finger spread (Experiment 14)
+- No negative class: non-letter hand shapes are rejected by threshold rather
+  than classified as "not a letter". A resting hand fell near Q and had to be
+  suppressed by raising the threshold. A trained NONE class would address the
+  cause and permit a lower threshold. Deferred.
