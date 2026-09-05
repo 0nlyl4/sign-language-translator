@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Normalize Test</title>
+  <style>
+    body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
+    pre { font-size: 14px; line-height: 1.6; }
+    .ok { color: #4ade80; }
+    .bad { color: #f87171; }
+  </style>
+</head>
+<body>
+  <h3>Normalize Test</h3>
+  <pre id="output">loading...</pre>
+
+<script type="module">
+
+const output = document.getElementById("output");
+
+function normalizeLandmarks(row) {
+  const points = [];
+  for (let i = 0; i < row.length; i += 3) {
+    points.push([row[i], row[i + 1], row[i + 2]]);
+  }
+
+  const wx = points[0][0];
+  const wy = points[0][1];
+  const wz = points[0][2];
+
+  for (const p of points) {
+    p[0] -= wx;
+    p[1] -= wy;
+    p[2] -= wz;
+  }
+
+  let maxDist = 0;
+  for (const p of points) {
+    const d = Math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
+    if (d > maxDist) maxDist = d;
+  }
+
+  const out = [];
+  for (const p of points) {
+    if (maxDist > 0) {
+      out.push(p[0] / maxDist, p[1] / maxDist, p[2] / maxDist);
+    } else {
+      out.push(p[0], p[1], p[2]);
+    }
+  }
+
+  return out;
+}
+
+const samples = await (await fetch("test_samples.json")).json();
+
+let lines = [];
+lines.push(`samples: ${samples.length}`);
+lines.push("");
+
+let failed = 0;
+let maxDiff = 0;
+let worstIndex = -1;
+
+for (let s = 0; s < samples.length; s++) {
+  const sample = samples[s];
+  const mine = normalizeLandmarks(sample.raw);
+
+  let diff = 0;
+  for (let i = 0; i < mine.length; i++) {
+    diff = Math.max(diff, Math.abs(mine[i] - sample.normalized[i]));
+  }
+
+  if (diff > maxDiff) {
+    maxDiff = diff;
+    worstIndex = s;
+  }
+
+  const ok = mine.length === sample.normalized.length && diff < 1e-7;
+  if (!ok) failed++;
+
+  lines.push(
+    `${ok ? "OK  " : "FAIL"}  ${sample.label}  ` +
+    `len=${mine.length}  maxdiff=${diff.toExponential(2)}`
+  );
+}
+
+lines.push("");
+lines.push(`failed: ${failed} / ${samples.length}`);
+lines.push(`worst diff: ${maxDiff.toExponential(3)} (sample ${worstIndex})`);
+lines.push("");
+lines.push(failed === 0
+  ? "NORMALIZE MATCHES PYTHON"
+  : "NORMALIZE DOES NOT MATCH");
+
+output.textContent = lines.join("\n");
+output.className = failed === 0 ? "ok" : "bad";
+
+</script>
+</body>
+</html>
