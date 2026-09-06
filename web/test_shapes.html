@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Shapes</title>
+  <style>
+    body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
+    #grid { display: grid; grid-template-columns: repeat(6, 1fr);
+            gap: 14px; max-width: 1000px; }
+    .cell { border: 1px solid #333; padding: 8px; text-align: center; }
+    .cell div { font-size: 20px; margin-bottom: 4px; }
+    svg { display: block; }
+  </style>
+</head>
+<body>
+  <h3>Shapes from the dataset</h3>
+  <div id="grid">loading...</div>
+
+<script type="module">
+
+const SIZE = 150;
+const PAD = 16;
+const TIPS = [4, 8, 12, 16, 20];
+
+const grid = document.getElementById("grid");
+
+const data = await (await fetch("shapes.json")).json();
+
+function fit(points) {
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+
+  for (const p of points) {
+    if (p[0] < minX) minX = p[0];
+    if (p[0] > maxX) maxX = p[0];
+    if (p[1] < minY) minY = p[1];
+    if (p[1] > maxY) maxY = p[1];
+  }
+
+  const span = Math.max(maxX - minX, maxY - minY);
+  const scale = (SIZE - PAD * 2) / span;
+
+  const offsetX = (SIZE - (maxX - minX) * scale) / 2;
+  const offsetY = (SIZE - (maxY - minY) * scale) / 2;
+
+  return points.map(p => [
+    (p[0] - minX) * scale + offsetX,
+    (p[1] - minY) * scale + offsetY
+  ]);
+}
+
+let html = "";
+
+for (const [letter, raw] of Object.entries(data.shapes)) {
+  const points = fit(raw);
+
+  let lines = "";
+  for (const [a, b] of data.connections) {
+    lines +=
+      `<line x1="${points[a][0].toFixed(1)}" y1="${points[a][1].toFixed(1)}" ` +
+      `x2="${points[b][0].toFixed(1)}" y2="${points[b][1].toFixed(1)}" ` +
+      `stroke="#eee" stroke-width="3" stroke-linecap="round"/>`;
+  }
+
+  let dots = "";
+  for (let i = 0; i < points.length; i++) {
+    const r = TIPS.includes(i) ? 4 : 2.4;
+    dots +=
+      `<circle cx="${points[i][0].toFixed(1)}" cy="${points[i][1].toFixed(1)}" ` +
+      `r="${r}" fill="#4ade80"/>`;
+  }
+
+  html +=
+    `<div class="cell"><div>${letter}</div>` +
+    `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">` +
+    lines + dots + `</svg></div>`;
+}
+
+grid.innerHTML = html;
+
+</script>
+</body>
+</html>
