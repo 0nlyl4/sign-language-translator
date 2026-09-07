@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fingerspelling reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void: #12151a;
+  --surface: #1a1f26;
+  --raised: #222831;
+  --hair: rgba(255,255,255,0.09);
+  --hair-strong: rgba(255,255,255,0.18);
+  --warm: #ece8e1;
+  --cool: #949cа8;
+  --cool: #949ca8;
+  --dim: #5c646f;
+  --brass: #d3ae6e;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--void);
+  color: var(--warm);
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-feature-settings: "tnum";
+  line-height: 1.6;
+  padding: 0 24px 96px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1060px; margin: 0 auto; }
+button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; }
+a { color: var(--warm); text-underline-offset: 3px; }
+
+/* ---------- hero ---------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 56px;
+  align-items: center;
+  padding: 92px 0 100px;
+}
+
+h1 {
+  font-size: clamp(36px, 5.4vw, 60px);
+  font-weight: 600;
+  letter-spacing: -0.032em;
+  line-height: 1.02;
+}
+
+.lede { color: var(--cool); margin-top: 22px; max-width: 42ch; font-size: 17px; }
+
+.start {
+  margin-top: 34px;
+  background: var(--warm);
+  color: var(--void);
+  padding: 15px 30px;
+  border-radius: 999px;
+  font-weight: 500;
+  transition: transform 140ms var(--ease), opacity 140ms var(--ease);
+}
+.start:active { transform: scale(0.97); }
+.start:disabled { opacity: 0.32; cursor: default; }
+.start:focus-visible { outline: 2px solid var(--brass); outline-offset: 4px; }
+@media (hover: hover) and (pointer: fine) {
+  .start:hover:not(:disabled) { transform: translateY(-2px); }
+}
+
+.plate { display: flex; justify-content: center; }
+.plate img { width: 100%; max-height: 340px; object-fit: contain; filter: invert(1); }
+
+/* ---------- tool ---------- */
+
+#stage { display: none; padding: 52px 0 8px; }
+#stage.on { display: block; }
+#hero.off { display: none; }
+
+.top { display: grid; grid-template-columns: 1fr 232px; gap: 24px; align-items: start; }
+
+.viewer { position: relative; }
+canvas {
+  width: 100%; display: block; border-radius: 14px;
+  background: #000; border: 1px solid var(--hair);
+}
+
+.readout {
+  position: absolute; left: 22px; bottom: 20px;
+  display: flex; align-items: baseline; gap: 13px;
+}
+.readout .glyph {
+  font-size: 60px; font-weight: 600; line-height: 1;
+  letter-spacing: -0.03em; color: var(--warm);
+}
+.readout .pct { font-size: 15px; color: var(--cool); }
+.readout.unsure .glyph { color: var(--dim); }
+
+.hold {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: var(--brass); border-radius: 0 0 14px 14px;
+  transform-origin: left; transform: scaleX(0);
+  transition: transform 90ms linear;
+}
+
+.target {
+  background: var(--surface); border: 1px solid var(--hair);
+  border-radius: 14px; padding: 22px; text-align: center;
+}
+.target img { width: 100%; height: 152px; object-fit: contain; filter: invert(1); }
+.target .name { font-size: 27px; font-weight: 600; margin-top: 12px; letter-spacing: -0.02em; }
+.target .hint { font-size: 13px; color: var(--cool); }
+.target .gap { font-size: 13px; color: var(--dim); padding: 62px 0; }
+
+.strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 26px; }
+
+.key {
+  width: 37px; height: 37px; border-radius: 9px;
+  font-size: 15px; font-weight: 500; color: var(--cool);
+  border: 1px solid transparent;
+  transition: background-color 130ms ease, color 130ms ease, border-color 130ms ease;
+}
+.key.picked { border-color: var(--hair-strong); color: var(--warm); }
+.key.seen { background: var(--brass); color: var(--void); border-color: var(--brass); }
+.key.off { color: var(--dim); cursor: default; }
+.key:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .key:not(.off):hover { background: var(--raised); color: var(--warm); }
+}
+
+.note { font-size: 13px; color: var(--cool); margin-top: 16px; }
+
+.output { margin-top: 28px; display: none; }
+.output.on { display: block; }
+.output .text {
+  font-size: 36px; font-weight: 500; letter-spacing: 0.14em;
+  min-height: 48px; word-break: break-all;
+}
+
+.tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.tool {
+  font-size: 13px; padding: 8px 17px;
+  border: 1px solid var(--hair); border-radius: 999px; color: var(--cool);
+  transition: border-color 130ms ease, color 130ms ease, transform 130ms var(--ease);
+}
+.tool:active { transform: scale(0.96); }
+.tool:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .tool:hover { border-color: var(--hair-strong); color: var(--warm); }
+}
+
+/* ---------- content ---------- */
+
+section.band { border-top: 1px solid var(--hair); padding-top: 44px; margin-top: 64px; }
+
+h2 { font-size: 13px; font-weight: 500; color: var(--cool); margin-bottom: 30px; }
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; }
+.stat .n { font-size: 46px; font-weight: 600; letter-spacing: -0.035em; color: var(--brass); line-height: 1.05; }
+.stat .l { font-size: 14px; color: var(--cool); margin-top: 8px; }
+
+.sheet {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+  background: var(--hair); border: 1px solid var(--hair); border-radius: 12px;
+  overflow: hidden;
+}
+.cell {
+  background: var(--surface); padding: 14px 8px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.cell img { width: 100%; height: 62px; object-fit: contain; filter: invert(1); }
+.cell .c { font-size: 13px; color: var(--cool); }
+.cell.empty { color: var(--dim); }
+.cell.empty .box { height: 62px; display: flex; align-items: center; font-size: 12px; }
+
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.step { border-top: 1px solid var(--hair-strong); padding-top: 14px; }
+.step .k { font-size: 13px; color: var(--brass); }
+.step .t { font-weight: 500; margin-top: 5px; }
+.step .d { font-size: 14px; color: var(--cool); margin-top: 7px; }
+
+.limits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+.limit { font-size: 14px; color: var(--cool); }
+.limit b { display: block; color: var(--warm); font-weight: 500; margin-bottom: 5px; }
+
+footer { margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--hair);
+         font-size: 14px; color: var(--cool); }
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; gap: 28px; padding: 44px 0 52px; }
+  .plate { order: -1; }
+  .plate img { max-height: 180px; }
+  .top { grid-template-columns: 1fr; }
+  .target { display: flex; align-items: center; gap: 20px; text-align: left; }
+  .target img { width: 94px; height: 94px; }
+  .target .gap { padding: 28px 0; }
+  .stats, .steps, .limits { grid-template-columns: repeat(2, 1fr); }
+  .sheet { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 1ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section class="hero" id="hero">
+    <div>
+      <h1>Read fingerspelling from your camera</h1>
+      <p class="lede">
+        Hold a letter of the American manual alphabet in front of your camera
+        and it turns into text. The model runs inside this page, so the video
+        never leaves your device.
+      </p>
+      <button class="start" id="start" disabled>Loading the model…</button>
+    </div>
+    <div class="plate"><img id="heroImg" src="letters/A.svg" alt="the handshape for A"></div>
+  </section>
+
+  <section id="stage">
+    <div class="top">
+      <div class="viewer">
+        <canvas id="canvas" width="640" height="480"></canvas>
+        <div class="readout" id="readout"><span class="glyph"></span><span class="pct"></span></div>
+        <div class="hold" id="hold"></div>
+      </div>
+      <div class="target" id="target"></div>
+    </div>
+
+    <div class="strip" id="strip"></div>
+    <p class="note">Pick a letter to see its handshape. J and Z are left out because they need movement.</p>
+
+    <div class="output" id="output">
+      <div class="text" id="text"></div>
+      <div class="tools">
+        <button class="tool" id="tSpace">Add space</button>
+        <button class="tool" id="tBack">Delete</button>
+        <button class="tool" id="tClear">Clear</button>
+        <button class="tool" id="tMirror">Mirror the camera</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2>Measured across two independent recording sessions</h2>
+    <div class="stats">
+      <div class="stat"><div class="n">97.2%</div><div class="l">Accuracy on a session the model never trained on</div></div>
+      <div class="stat"><div class="n">4.2%</div><div class="l">What random guessing would score</div></div>
+      <div class="stat"><div class="n">14,400</div><div class="l">Samples recorded by hand for this project</div></div>
+      <div class="stat"><div class="n">24</div><div class="l">Letters, the full static alphabet</div></div>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2>The alphabet it reads</h2>
+    <div class="sheet" id="sheet"></div>
+  </section>
+
+  <section class="band">
+    <h2>How a frame becomes a letter</h2>
+    <div class="steps">
+      <div class="step"><div class="k">1</div><div class="t">Find the hand</div>
+        <div class="d">MediaPipe returns 21 joint positions. The photo itself is thrown away.</div></div>
+      <div class="step"><div class="k">2</div><div class="t">Remove position and size</div>
+        <div class="d">Points shift so the wrist sits at zero, then scale so the hand spans one unit.</div></div>
+      <div class="step"><div class="k">3</div><div class="t">Ask 100 trees</div>
+        <div class="d">Each decision tree votes for a letter. The share that agree becomes the confidence.</div></div>
+      <div class="step"><div class="k">4</div><div class="t">Wait for a steady shape</div>
+        <div class="d">Below 60% agreement nothing is shown. A letter is written only after it holds.</div></div>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2>What it does not do</h2>
+    <div class="limits">
+      <div class="limit"><b>J and Z are missing</b>Both are drawn in the air. A single frame cannot capture a path.</div>
+      <div class="limit"><b>Rotation is not handled</b>Letters with a strong direction expect you to face the camera the way the data was recorded.</div>
+      <div class="limit"><b>One pair of hands</b>Two sessions, one person, one right hand. Nothing here proves it generalises further.</div>
+    </div>
+  </section>
+
+  <footer>
+    Built with Python, scikit-learn and MediaPipe. The trained forest is exported
+    to JSON and walked in JavaScript, so there is no server.
+    <a href="https://github.com/0nlyl4/sign-language-translator">Source on GitHub</a>
+  </footer>
+
+</div>
+
+<script type="module">
+import { FilesetResolver, HandLandmarker }
+  from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/vision_bundle.mjs";
+
+const CONFIDENCE_THRESHOLD = 0.60;
+const SMOOTHING_WINDOW = 7;
+const HOLD_FRAMES = 15;
+
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+const MOVING = ["J", "Z"];
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const readout = document.getElementById("readout");
+const glyph = readout.querySelector(".glyph");
+const pct = readout.querySelector(".pct");
+const holdBar = document.getElementById("hold");
+const stripEl = document.getElementById("strip");
+const targetEl = document.getElementById("target");
+const sheetEl = document.getElementById("sheet");
+const outputEl = document.getElementById("output");
+const textEl = document.getElementById("text");
+const startBtn = document.getElementById("start");
+
+function normalizeLandmarks(row) {
+  const points = [];
+  for (let i = 0; i < row.length; i += 3) {
+    points.push([row[i], row[i + 1], row[i + 2]]);
+  }
+
+  const wx = points[0][0];
+  const wy = points[0][1];
+  const wz = points[0][2];
+
+  for (const p of points) {
+    p[0] -= wx;
+    p[1] -= wy;
+    p[2] -= wz;
+  }
+
+  let maxDist = 0;
+  for (const p of points) {
+    const d = Math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
+    if (d > maxDist) maxDist = d;
+  }
+
+  const out = [];
+  for (const p of points) {
+    if (maxDist > 0) {
+      out.push(p[0] / maxDist, p[1] / maxDist, p[2] / maxDist);
+    } else {
+      out.push(p[0], p[1], p[2]);
+    }
+  }
+
+  return out;
+}
+
+function walkTree(tree, x) {
+  let node = 0;
+  while (tree.f[node] !== -1) {
+    if (x[tree.f[node]] <= tree.t[node]) {
+      node = tree.l[node];
+    } else {
+      node = tree.r[node];
+    }
+  }
+  return tree.v[node];
+}
+
+function predictProba(forest, x) {
+  const votes = new Array(forest.classes.length).fill(0);
+  for (const tree of forest.trees) {
+    votes[walkTree(tree, x)] += 1;
+  }
+  return votes.map(v => v / forest.trees.length);
+}
+
+function mostCommon(history) {
+  const counts = new Map();
+  for (const item of history) {
+    counts.set(item, (counts.get(item) || 0) + 1);
+  }
+  let winner = null;
+  let bestCount = -1;
+  for (const [key, count] of counts) {
+    if (count > bestCount) { bestCount = count; winner = key; }
+  }
+  return winner;
+}
+
+let forest = null;
+let handLandmarker = null;
+let known = new Set();
+
+let history = [];
+let sentence = "";
+let holdLetter = null;
+let holdCount = 0;
+let committed = false;
+let mirror = false;
+let picked = "A";
+let seen = null;
+
+function drawStrip() {
+  let html = "";
+  for (const c of ALPHABET) {
+    const moving = MOVING.includes(c);
+    const classes = ["key"];
+    if (moving) classes.push("off");
+    if (c === picked && !moving) classes.push("picked");
+    if (c === seen) classes.push("seen");
+    html += `<button class="${classes.join(" ")}" data-letter="${c}" ` +
+            `${moving ? "disabled" : ""}>${c}</button>`;
+  }
+  stripEl.innerHTML = html;
+}
+
+function drawSheet() {
+  let html = "";
+  for (const c of ALPHABET) {
+    if (MOVING.includes(c)) continue;
+    if (known.has(c)) {
+      html += `<div class="cell"><img src="letters/${c}.svg" ` +
+              `alt="handshape for ${c}"><div class="c">${c}</div></div>`;
+    } else {
+      html += `<div class="cell empty"><div class="box">not loaded</div>` +
+              `<div class="c">${c}</div></div>`;
+    }
+  }
+  sheetEl.innerHTML = html;
+}
+
+function drawTarget() {
+  if (known.has(picked)) {
+    targetEl.innerHTML =
+      `<img src="letters/${picked}.svg" alt="handshape for ${picked}">` +
+      `<div><div class="name">${picked}</div>` +
+      `<div class="hint">Copy this shape</div></div>`;
+  } else {
+    targetEl.innerHTML = `<div class="gap">No drawing for ${picked} yet</div>`;
+  }
+}
+
+function drawText() {
+  outputEl.classList.toggle("on", sentence.length > 0);
+  textEl.textContent = sentence.slice(-24);
+}
+
+stripEl.addEventListener("click", (e) => {
+  const key = e.target.closest(".key");
+  if (!key || MOVING.includes(key.dataset.letter)) return;
+  picked = key.dataset.letter;
+  drawStrip();
+  drawTarget();
+});
+
+async function boot() {
+  forest = await (await fetch("model.json")).json();
+
+  for (const c of ALPHABET) {
+    if (MOVING.includes(c)) continue;
+    try {
+      const res = await fetch(`letters/${c}.svg`, { method: "HEAD" });
+      if (res.ok) known.add(c);
+    } catch (e) { /* ignore */ }
+  }
+
+  drawSheet();
+
+  if (!known.has("A")) {
+    const first = [...known][0];
+    if (first) document.getElementById("heroImg").src = `letters/${first}.svg`;
+  }
+
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm"
+  );
+
+  handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+    },
+    runningMode: "VIDEO",
+    numHands: 1,
+    minHandDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.5
+  });
+
+  startBtn.disabled = false;
+  startBtn.textContent = "Turn on the camera";
+}
+
+async function begin() {
+  startBtn.disabled = true;
+  startBtn.textContent = "Waiting for the camera…";
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+  } catch (e) {
+    startBtn.disabled = false;
+    startBtn.textContent = "Camera blocked — allow it and try again";
+    return;
+  }
+
+  const video = document.createElement("video");
+  video.playsInline = true;
+  video.srcObject = stream;
+  await video.play();
+
+  document.getElementById("hero").classList.add("off");
+  document.getElementById("stage").classList.add("on");
+
+  drawStrip();
+  drawTarget();
+  drawText();
+
+  function loop() {
+    if (mirror) {
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.restore();
+    } else {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
+
+    const result = handLandmarker.detectForVideo(canvas, performance.now());
+
+    if (result.landmarks.length > 0) {
+      const landmarks = result.landmarks[0];
+
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      for (const lm of landmarks) {
+        ctx.beginPath();
+        ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 3, 0, 6.29);
+        ctx.fill();
+      }
+
+      const row = [];
+      for (const lm of landmarks) row.push(lm.x, lm.y, lm.z);
+
+      const probs = predictProba(forest, normalizeLandmarks(row));
+
+      let bestIndex = 0;
+      for (let i = 1; i < probs.length; i++) {
+        if (probs[i] > probs[bestIndex]) bestIndex = i;
+      }
+
+      const prediction = forest.classes[bestIndex];
+      const confidence = probs[bestIndex];
+
+      history.push(confidence >= CONFIDENCE_THRESHOLD ? prediction : null);
+      if (history.length > SMOOTHING_WINDOW) history.shift();
+
+      const stable = mostCommon(history);
+
+      if (stable === holdLetter) {
+        holdCount += 1;
+      } else {
+        holdLetter = stable;
+        holdCount = 1;
+        committed = false;
+      }
+
+      if (stable !== null && !committed && holdCount >= HOLD_FRAMES) {
+        sentence += stable;
+        committed = true;
+        drawText();
+      }
+
+      if (stable !== seen) { seen = stable; drawStrip(); }
+
+      glyph.textContent = stable !== null ? stable : "?";
+      pct.textContent = `${Math.round(confidence * 100)}%`;
+      readout.classList.toggle("unsure", stable === null);
+
+      const progress = stable !== null ? Math.min(holdCount / HOLD_FRAMES, 1) : 0;
+      holdBar.style.transform = `scaleX(${progress})`;
+
+    } else {
+      history = [];
+      holdLetter = null;
+      holdCount = 0;
+      committed = false;
+
+      if (seen !== null) { seen = null; drawStrip(); }
+
+      glyph.textContent = "";
+      pct.textContent = "No hand in view";
+      readout.classList.add("unsure");
+      holdBar.style.transform = "scaleX(0)";
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+}
+
+startBtn.addEventListener("click", begin);
+
+document.getElementById("tSpace").onclick = () => { sentence += " "; drawText(); };
+document.getElementById("tBack").onclick = () => { sentence = sentence.slice(0, -1); drawText(); };
+document.getElementById("tClear").onclick = () => { sentence = ""; drawText(); };
+document.getElementById("tMirror").onclick = (e) => {
+  mirror = !mirror;
+  e.target.textContent = mirror ? "Unmirror the camera" : "Mirror the camera";
+};
+
+window.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "BUTTON") return;
+  if (e.code === "Space") { e.preventDefault(); sentence += " "; drawText(); }
+  else if (e.code === "Backspace") { e.preventDefault(); sentence = sentence.slice(0, -1); drawText(); }
+});
+
+boot();
+</script>
+</body>
+</html>

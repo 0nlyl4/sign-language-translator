@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Letter Sources</title>
+  <style>
+    body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
+    .row { display: flex; align-items: center; gap: 20px;
+           border: 1px solid #333; padding: 14px; margin-bottom: 14px;
+           max-width: 800px; }
+    .letter { font-size: 40px; width: 60px; text-align: center; }
+    .box { width: 170px; text-align: center; }
+    .box img { width: 150px; height: 150px; object-fit: contain;
+               background: #fff; padding: 6px; }
+    .box span { display: block; color: #888; font-size: 12px; margin-top: 6px; }
+    .missing { color: #f87171; font-size: 13px; }
+    svg { background: #000; }
+  </style>
+</head>
+<body>
+  <h3>Same letter, three sources - check the thumb side</h3>
+  <div id="rows">loading...</div>
+
+<script type="module">
+
+const LETTERS = ["A", "B", "C", "H"];
+const SIZE = 150;
+const PAD = 16;
+const TIPS = [4, 8, 12, 16, 20];
+
+const rowsDiv = document.getElementById("rows");
+
+const data = await (await fetch("shapes.json")).json();
+
+function fit(points) {
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+
+  for (const p of points) {
+    if (p[0] < minX) minX = p[0];
+    if (p[0] > maxX) maxX = p[0];
+    if (p[1] < minY) minY = p[1];
+    if (p[1] > maxY) maxY = p[1];
+  }
+
+  const span = Math.max(maxX - minX, maxY - minY);
+  const scale = (SIZE - PAD * 2) / span;
+
+  const offsetX = (SIZE - (maxX - minX) * scale) / 2;
+  const offsetY = (SIZE - (maxY - minY) * scale) / 2;
+
+  return points.map(p => [
+    (p[0] - minX) * scale + offsetX,
+    (p[1] - minY) * scale + offsetY
+  ]);
+}
+
+function skeleton(letter) {
+  const raw = data.shapes[letter];
+  if (!raw) return `<span class="missing">no shape</span>`;
+
+  const points = fit(raw);
+
+  let lines = "";
+  for (const [a, b] of data.connections) {
+    lines +=
+      `<line x1="${points[a][0].toFixed(1)}" y1="${points[a][1].toFixed(1)}" ` +
+      `x2="${points[b][0].toFixed(1)}" y2="${points[b][1].toFixed(1)}" ` +
+      `stroke="#eee" stroke-width="3" stroke-linecap="round"/>`;
+  }
+
+  let dots = "";
+  for (let i = 0; i < points.length; i++) {
+    const r = TIPS.includes(i) ? 4 : 2.4;
+    dots +=
+      `<circle cx="${points[i][0].toFixed(1)}" cy="${points[i][1].toFixed(1)}" ` +
+      `r="${r}" fill="#4ade80"/>`;
+  }
+
+  return `<svg width="${SIZE}" height="${SIZE}" ` +
+         `viewBox="0 0 ${SIZE} ${SIZE}">${lines}${dots}</svg>`;
+}
+
+let html = "";
+
+for (const letter of LETTERS) {
+  html +=
+    `<div class="row">` +
+    `<div class="letter">${letter}</div>` +
+    `<div class="box"><img src="letters/${letter}.svg" ` +
+    `onerror="this.replaceWith('missing')">` +
+    `<span>wikimedia</span></div>` +
+    `<div class="box"><img src="../reference/${letter}.png" ` +
+    `onerror="this.replaceWith('missing')">` +
+    `<span>your photo</span></div>` +
+    `<div class="box">${skeleton(letter)}<span>your data</span></div>` +
+    `</div>`;
+}
+
+rowsDiv.innerHTML = html;
+
+</script>
+</body>
+</html>

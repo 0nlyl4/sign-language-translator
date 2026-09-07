@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Wiki Drawing Check</title>
+  <style>
+    body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
+    table { border-collapse: collapse; font-size: 15px; margin-top: 14px; }
+    td, th { padding: 8px 18px; text-align: left; border: 1px solid #333; }
+    th { color: #888; }
+    .win { color: #4ade80; }
+    .lose { color: #888; }
+    .miss { color: #f87171; }
+    #verdict { font-size: 18px; margin-top: 20px; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <h3>Wiki Drawing Check</h3>
+  <div id="progress">loading...</div>
+  <div id="table"></div>
+  <div id="verdict"></div>
+
+<script type="module">
+import { FilesetResolver, HandLandmarker }
+  from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/vision_bundle.mjs";
+
+const LETTERS = ["A", "B", "C", "H"];
+const RENDER = 1000;
+
+const progress = document.getElementById("progress");
+const tableDiv = document.getElementById("table");
+const verdict = document.getElementById("verdict");
+
+const work = document.createElement("canvas");
+work.width = RENDER;
+work.height = RENDER;
+const workCtx = work.getContext("2d", { willReadFrequently: true });
+
+function normalizeLandmarks(row) {
+  const points = [];
+  for (let i = 0; i < row.length; i += 3) {
+    points.push([row[i], row[i + 1], row[i + 2]]);
+  }
+
+  const wx = points[0][0];
+  const wy = points[0][1];
+  const wz = points[0][2];
+
+  for (const p of points) {
+    p[0] -= wx;
+    p[1] -= wy;
+    p[2] -= wz;
+  }
+
+  let maxDist = 0;
+  for (const p of points) {
+    const d = Math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
+    if (d > maxDist) maxDist = d;
+  }
+
+  const out = [];
+  for (const p of points) {
+    if (maxDist > 0) {
+      out.push(p[0] / maxDist, p[1] / maxDist, p[2] / maxDist);
+    } else {
+      out.push(p[0], p[1], p[2]);
+    }
+  }
+
+  return out;
+}
+
+function flipX(features) {
+  const out = features.slice();
+  for (let i = 0; i < out.length; i += 3) {
+    out[i] = -out[i];
+  }
+  return out;
+}
+
+function walkTree(tree, x) {
+  let node = 0;
+  while (tree.f[node] !== -1) {
+    if (x[tree.f[node]] <= tree.t[node]) {
+      node = tree.l[node];
+    } else {
+      node = tree.r[node];
+    }
+  }
+  return tree.v[node];
+}
+
+function predictProba(forest, x) {
+  const votes = new Array(forest.classes.length).fill(0);
+  for (const tree of forest.trees) {
+    votes[walkTree(tree, x)] += 1;
+  }
+  return votes.map(v => v / forest.trees.length);
+}
+
+function best(forest, probs) {
+  let b = 0;
+  for (let i = 1; i < probs.length; i++) {
+    if (probs[i] > probs[b]) b = i;
+  }
+  return [forest.classes[b], probs[b]];
+}
+
+async function loadDecoded(src) {
+  const img = new Image();
+  img.src = src;
+  try {
+    await img.decode();
+  } catch (e) {
+    return null;
+  }
+  return img;
+}
+
+const forest = await (await fetch("model.json")).json();
+
+const vision = await FilesetResolver.forVisionTasks(
+  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm"
+);
+
+const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+  baseOptions: {
+    modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+  },
+  runningMode: "IMAGE",
+  numHands: 1,
+  minHandDetectionConfidence: 0.3
+});
+
+let rows = [];
+let rightCount = 0;
+let leftCount = 0;
+let detected = 0;
+
+for (const letter of LETTERS) {
+  progress.textContent = `testing ${letter} ...`;
+
+  const img = await loadDecoded(`letters/${letter}.svg`);
+
+  if (!img) {
+    rows.push(`<tr><td>${letter}</td>` +
+              `<td class="miss" colspan="3">file not found</td></tr>`);
+    continue;
+  }
+
+  workCtx.fillStyle = "#fff";
+  workCtx.fillRect(0, 0, RENDER, RENDER);
+
+  const scale = Math.min(RENDER / img.naturalWidth, RENDER / img.naturalHeight) * 0.8;
+  const w = img.naturalWidth * scale;
+  const h = img.naturalHeight * scale;
+  workCtx.drawImage(img, (RENDER - w) / 2, (RENDER - h) / 2, w, h);
+
+  const result = handLandmarker.detect(work);
+
+  if (result.landmarks.length === 0) {
+    rows.push(`<tr><td>${letter}</td>` +
+              `<td class="miss" colspan="3">no hand detected</td></tr>`);
+    continue;
+  }
+
+  detected++;
+
+  const hand = result.handednesses[0][0].categoryName;
+  if (hand === "Right") rightCount++;
+  else leftCount++;
+
+  const row = [];
+  for (const lm of result.landmarks[0]) {
+    row.push(lm.x, lm.y, lm.z);
+  }
+
+  const features = normalizeLandmarks(row);
+  const a = best(forest, predictProba(forest, features));
+  const f = best(forest, predictProba(forest, flipX(features)));
+
+  const aOk = a[0] === letter;
+  const fOk = f[0] === letter;
+
+  rows.push(
+    `<tr><td>${letter}</td>` +
+    `<td class="${hand === "Right" ? "win" : "lose"}">${hand}</td>` +
+    `<td class="${aOk ? "win" : "lose"}">${a[0]} ${(a[1] * 100).toFixed(0)}%</td>` +
+    `<td class="${fOk ? "win" : "lose"}">${f[0]} ${(f[1] * 100).toFixed(0)}%</td>` +
+    `</tr>`
+  );
+}
+
+progress.textContent = `done - ${detected} / ${LETTERS.length} detected`;
+
+tableDiv.innerHTML =
+  `<table><tr><th>letter</th><th>handedness</th>` +
+  `<th>as-is</th><th>x-flipped</th></tr>` + rows.join("") + `</table>`;
+
+let answer;
+if (detected === 0) {
+  answer = "MediaPipe cannot read line drawings - judge another way";
+} else if (rightCount > leftCount) {
+  answer = "Drawings are RIGHT hand - same as your data, no flip needed";
+} else if (leftCount > rightCount) {
+  answer = "Drawings are LEFT hand - flip them in CSS";
+} else {
+  answer = "Split result - tell Claude";
+}
+
+verdict.innerHTML =
+  `your data is: Right<br>` +
+  `drawings: Right ${rightCount}, Left ${leftCount}<br><br>` +
+  `<span class="win">${answer}</span>`;
+
+</script>
+</body>
+</html>
