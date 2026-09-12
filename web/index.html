@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --void: #12151a;
+  --void: #0f1216;
   --surface: #191e25;
   --raised: #202730;
   --hair: rgba(255,255,255,0.08);
@@ -33,10 +33,42 @@ body {
 button, a { font: inherit; color: inherit; }
 a { text-decoration: none; }
 
+/* ---------- background ---------- */
+
+.bg {
+  position: fixed; inset: 0; z-index: -1;
+  pointer-events: none; overflow: hidden;
+}
+
+.bg .glow {
+  position: absolute; top: 22%; left: 62%;
+  width: 60vw; height: 60vw; max-width: 900px; max-height: 900px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle,
+              rgba(150,170,200,0.09) 0%,
+              rgba(150,170,200,0.04) 38%,
+              transparent 70%);
+}
+
+.bg .motif {
+  position: absolute; top: 26%; right: -6vw;
+  font-size: clamp(300px, 42vw, 640px);
+  font-weight: 600; line-height: 0.78;
+  letter-spacing: -0.05em;
+  color: rgba(236,232,225,0.035);
+  user-select: none;
+}
+
+.bg .vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 55% 38%,
+              transparent 42%, rgba(6,8,11,0.55) 100%);
+}
+
 /* ---------- nav ---------- */
 
 nav { position: sticky; top: 0; z-index: 20;
-      background: rgba(18,21,26,0.85); backdrop-filter: blur(14px);
+      background: rgba(15,18,22,0.85); backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--hair); }
 nav .row { max-width: 1120px; margin: 0 auto; padding: 15px 28px;
            display: flex; justify-content: space-between; align-items: center; }
@@ -141,6 +173,8 @@ footer a { color: var(--warm); text-decoration: underline; text-underline-offset
 .rise.in { opacity: 1; transform: none; }
 
 @media (max-width: 900px) {
+  .bg .motif { top: 8%; right: -14vw; font-size: 40vw; }
+  .bg .glow { top: 16%; left: 55%; }
   .hero { grid-template-columns: 1fr; min-height: 0; gap: 28px; padding: 36px 0 48px; }
   .stage { order: -1; max-height: 300px; }
   .cards { grid-template-columns: 1fr; }
@@ -156,10 +190,16 @@ footer a { color: var(--warm); text-decoration: underline; text-underline-offset
 </head>
 <body>
 
+<div class="bg" aria-hidden="true">
+  <div class="glow"></div>
+  <div class="motif">24</div>
+  <div class="vignette"></div>
+</div>
+
 <nav>
   <div class="row">
     <span class="mark">ASL fingerspelling</span>
-        <a class="to" href="app.html">Explore 24 signs →</a>
+    <a class="to" href="app.html">Explore 24 signs →</a>
   </div>
 </nav>
 
