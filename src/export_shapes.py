@@ -24,6 +24,7 @@ CONNECTIONS = [
 df = pd.read_csv(CSV_PATH)
 
 shapes = {}
+z_spans = []
 
 for label in sorted(df["label"].unique()):
     rows = df[df["label"] == label].drop(columns=["label", "batch"]).values
@@ -31,11 +32,18 @@ for label in sorted(df["label"].unique()):
     points = normalize_landmarks(median_row).reshape(21, 3)
 
     shapes[str(label)] = [
-        [round(float(p[0]), DECIMALS), round(float(p[1]), DECIMALS)]
+        [round(float(p[0]), DECIMALS),
+         round(float(p[1]), DECIMALS),
+         round(float(p[2]), DECIMALS)]
         for p in points
     ]
 
-    print(f"{label}: {len(rows)} samples")
+    z_span = points[:, 2].max() - points[:, 2].min()
+    xy_span = max(points[:, 0].max() - points[:, 0].min(),
+                  points[:, 1].max() - points[:, 1].min())
+    z_spans.append(z_span / xy_span)
+
+    print(f"{label}: z span {z_span:.3f}   ratio to xy {z_span / xy_span:.2f}")
 
 data = {"connections": CONNECTIONS, "shapes": shapes}
 
@@ -47,3 +55,4 @@ with open(OUTPUT_PATH, "w") as out:
 print(f"\nWrote {OUTPUT_PATH}")
 print(f"Letters: {len(shapes)}")
 print(f"Size: {os.path.getsize(OUTPUT_PATH) / 1024:.1f} KB")
+print(f"\nMean z/xy ratio: {np.mean(z_spans):.2f}")

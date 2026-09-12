@@ -1,102 +1,451 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Landmark Check</title>
-  <style>
-    body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
-    canvas { border: 1px solid #444; }
-    pre { font-size: 15px; line-height: 1.6; }
-    button { font-size: 16px; padding: 8px 20px; margin-top: 10px; }
-  </style>
-</head>
-<body>
-  <h3>Landmark Check</h3>
-  <video id="video" style="display:none" playsinline></video>
-  <canvas id="canvas" width="640" height="480"></canvas>
-  <br>
-  <button id="printBtn">Print points</button>
-  <pre id="output">loading...</pre>
-
-<script type="module">
-import { FilesetResolver, HandLandmarker }
-  from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/vision_bundle.mjs";
-
-const KEY_POINTS = [0, 4, 8, 12];
-
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-const output = document.getElementById("output");
-
-let landmarks = null;
-
-const vision = await FilesetResolver.forVisionTasks(
-  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm"
-);
-
-const handLandmarker = await HandLandmarker.createFromOptions(vision, {
-  baseOptions: {
-    modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-  },
-  runningMode: "VIDEO",
-  numHands: 1,
-  minHandDetectionConfidence: 0.7,
-  minTrackingConfidence: 0.5
-});
-
-const stream = await navigator.mediaDevices.getUserMedia({
-  video: { width: 640, height: 480 }
-});
-video.srcObject = stream;
-await video.play();
-
-output.textContent = "ready - hold your hand still, then click Print";
-
-function loop() {
-  ctx.save();
-  ctx.scale(-1, 1);
-  ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-  ctx.restore();
-
-  const result = handLandmarker.detectForVideo(canvas, performance.now());
-
-  if (result.landmarks.length > 0) {
-    landmarks = result.landmarks[0];
-    ctx.fillStyle = "red";
-    for (const lm of landmarks) {
-      ctx.beginPath();
-      ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 4, 0, 6.29);
-      ctx.fill();
-    }
-    ctx.fillStyle = "yellow";
-    ctx.font = "18px monospace";
-    for (const i of KEY_POINTS) {
-      const lm = landmarks[i];
-      ctx.fillText(String(i), lm.x * canvas.width + 8, lm.y * canvas.height);
-    }
-  } else {
-    landmarks = null;
-  }
-
-  requestAnimationFrame(loop);
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fingerspelling, read from a single frame</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void: #12151a;
+  --surface: #191e25;
+  --raised: #202730;
+  --hair: rgba(255,255,255,0.08);
+  --hair-lit: rgba(255,255,255,0.2);
+  --warm: #ece8e1;
+  --cool: #949ca8;
+  --dim: #5c646f;
+  --brass: #d3ae6e;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-loop();
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-document.getElementById("printBtn").onclick = () => {
-  if (!landmarks) {
-    output.textContent = "no hand";
-    return;
+body {
+  background: var(--void); color: var(--warm);
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  line-height: 1.6; -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+button, a { font: inherit; color: inherit; }
+a { text-decoration: none; }
+
+/* ---------- nav ---------- */
+
+nav { position: sticky; top: 0; z-index: 20;
+      background: rgba(18,21,26,0.85); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--hair); }
+nav .row { max-width: 1120px; margin: 0 auto; padding: 15px 28px;
+           display: flex; justify-content: space-between; align-items: center; }
+nav .mark { font-weight: 600; letter-spacing: -0.02em; }
+nav .to { font-size: 14px; color: var(--cool);
+          transition: color 140ms ease; }
+nav .to:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+@media (hover: hover) { nav .to:hover { color: var(--warm); } }
+
+/* ---------- hero ---------- */
+
+.hero {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+  align-items: center; min-height: calc(100vh - 120px); padding: 40px 0 60px;
+}
+
+h1 { font-size: clamp(38px, 5.2vw, 60px); font-weight: 600;
+     letter-spacing: -0.034em; line-height: 1.02; }
+.lede { color: var(--cool); margin-top: 22px; max-width: 44ch; font-size: 17px; }
+
+.cta { display: inline-block; margin-top: 32px;
+       background: var(--warm); color: var(--void);
+       padding: 14px 30px; border-radius: 999px; font-weight: 500;
+       transition: transform 140ms var(--ease); }
+.cta:active { transform: scale(0.97); }
+.cta:focus-visible { outline: 2px solid var(--brass); outline-offset: 4px; }
+@media (hover: hover) { .cta:hover { transform: translateY(-2px); } }
+
+.stage { position: relative; aspect-ratio: 1; max-height: 520px; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.stage .tag { position: absolute; left: 0; bottom: 0;
+              font-size: 12px; letter-spacing: 0.1em;
+              text-transform: uppercase; color: var(--dim); }
+
+/* ---------- sections ---------- */
+
+section { border-top: 1px solid var(--hair); padding: 64px 0; }
+h2 { font-size: 13px; font-weight: 500; color: var(--cool); margin-bottom: 26px; }
+
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--hair);
+  border-radius: 14px; padding: 26px;
+  transition: border-color 180ms ease, background-color 180ms ease,
+              transform 180ms var(--ease);
+}
+@media (hover: hover) {
+  .card:hover { border-color: var(--hair-lit); background: var(--raised);
+                transform: translateY(-3px); }
+}
+.card .eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+                 color: var(--brass); }
+.card h3 { font-size: 21px; font-weight: 600; letter-spacing: -0.02em;
+           margin: 12px 0 10px; line-height: 1.2; }
+.card p { font-size: 15px; color: var(--cool); }
+
+/* ---------- comparison ---------- */
+
+.compare {
+  background: var(--surface); border: 1px solid var(--hair);
+  border-radius: 14px; padding: 34px;
+  display: grid; grid-template-columns: 300px 1fr; gap: 40px; align-items: center;
+}
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.trio figure { text-align: center; }
+.trio img { width: 100%; height: 96px; object-fit: contain; filter: invert(1); }
+.trio figcaption { font-size: 20px; font-weight: 600; margin-top: 8px; }
+.trio small { display: block; font-size: 12px; color: var(--dim); }
+.compare .say h3 { font-size: 25px; font-weight: 600; letter-spacing: -0.022em; }
+.compare .say p { color: var(--cool); margin-top: 12px; font-size: 16px; }
+
+/* ---------- alphabet ---------- */
+
+.sheet { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+         background: var(--hair); border: 1px solid var(--hair);
+         border-radius: 14px; overflow: hidden; }
+.cell { background: var(--surface); padding: 16px 8px 11px;
+        display: flex; flex-direction: column; align-items: center; gap: 7px;
+        transition: background-color 160ms ease; }
+.cell img { width: 100%; height: 64px; object-fit: contain; filter: invert(1); }
+.cell .c { font-size: 13px; color: var(--cool); }
+@media (hover: hover) { .cell:hover { background: var(--raised); } }
+.missing { font-size: 13px; color: var(--dim); margin-top: 16px; }
+
+/* ---------- closing ---------- */
+
+.closing { text-align: center; padding: 84px 0 96px; }
+.closing h2 { font-size: clamp(26px, 3.4vw, 38px); font-weight: 600;
+              color: var(--warm); letter-spacing: -0.026em;
+              max-width: 18ch; margin: 0 auto 6px; line-height: 1.14; }
+
+footer { border-top: 1px solid var(--hair); padding: 26px 0 56px;
+         font-size: 14px; color: var(--cool); }
+footer a { color: var(--warm); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- reveal ---------- */
+
+.rise { opacity: 0; transform: translateY(14px);
+        transition: opacity 560ms var(--ease), transform 560ms var(--ease); }
+.rise.in { opacity: 1; transform: none; }
+
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; min-height: 0; gap: 28px; padding: 36px 0 48px; }
+  .stage { order: -1; max-height: 300px; }
+  .cards { grid-template-columns: 1fr; }
+  .compare { grid-template-columns: 1fr; gap: 26px; padding: 24px; }
+  .sheet { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise { opacity: 1; transform: none; transition: none; }
+  * { transition-duration: 1ms !important; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="row">
+    <span class="mark">ASL fingerspelling</span>
+    <a class="to" href="app.html">Try it with your camera →</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="rise">
+      <h1>Twenty-four handshapes, read from a single frame</h1>
+      <p class="lede">
+        A hand held in front of a camera becomes a letter. No gloves, no sensors,
+        no server — a hand tracker and a hundred decision trees, running inside
+        the page you are reading.
+      </p>
+      <a class="cta" href="app.html">Explore the signs</a>
+    </div>
+    <div class="stage">
+      <canvas id="c"></canvas>
+      <div class="tag" id="tag">B — from the dataset</div>
+    </div>
+  </div>
+
+  <section>
+    <h2>Three things worth knowing</h2>
+    <div class="cards">
+      <div class="card rise">
+        <div class="eyebrow">The language</div>
+        <h3>A language, not a code</h3>
+        <p>
+          ASL has its own grammar and word order. It is not English rendered in
+          gestures. The manual alphabet is one small part of it, used to spell
+          names and words with no sign of their own.
+        </p>
+      </div>
+      <div class="card rise">
+        <div class="eyebrow">The shape</div>
+        <h3>A letter is an arrangement</h3>
+        <p>
+          Which fingers are raised, where the thumb sits, which way the palm
+          faces. Change one of them and the letter changes with it. There is no
+          picture to match, only a configuration.
+        </p>
+      </div>
+      <div class="card rise">
+        <div class="eyebrow">The method</div>
+        <h3>It never sees the photograph</h3>
+        <p>
+          Every frame is reduced to twenty-one joint positions. Those numbers,
+          not pixels, reach the classifier — which makes it fast and largely
+          indifferent to lighting and background.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Where it gets difficult</h2>
+    <div class="compare rise">
+      <div class="trio">
+        <figure><img src="letters/U.svg" alt="handshape for U">
+          <figcaption>U</figcaption><small>joined</small></figure>
+        <figure><img src="letters/V.svg" alt="handshape for V">
+          <figcaption>V</figcaption><small>spread</small></figure>
+        <figure><img src="letters/R.svg" alt="handshape for R">
+          <figcaption>R</figcaption><small>crossed</small></figure>
+      </div>
+      <div class="say">
+        <h3>Three letters, one pair of fingers</h3>
+        <p>
+          U, V and R differ only in how two fingers are spaced. They are not
+          three separate categories so much as points along one continuum, and a
+          classifier has to draw its line somewhere in between.
+        </p>
+        <p>
+          Most of the work on this project was not the model. It was measuring
+          where those lines actually fall.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The twenty-four letters it reads</h2>
+    <div class="sheet" id="sheet"></div>
+    <p class="missing">J and Z are drawn in the air. A single frame cannot capture a path, so they are left out.</p>
+  </section>
+
+  <div class="closing">
+    <h2>See what it makes of your hand</h2>
+    <a class="cta" href="app.html">Explore the signs</a>
+  </div>
+
+  <footer>
+    Built with Python, scikit-learn and MediaPipe. The trained forest is exported
+    to JSON and walked in JavaScript, so there is no server.
+    <a href="https://github.com/0nlyl4/sign-language-translator">Source on GitHub</a>
+  </footer>
+
+</div>
+
+<script type="module">
+
+const MAX_YAW = 0.75;
+const MAX_PITCH = 0.42;
+const FOCAL = 3.0;
+const EASE = 0.11;
+const THICK = 7.4;
+
+const PALM = [0, 1, 5, 9, 13, 17];
+const RADIUS = [
+  1.15, 0.78, 0.68, 0.55, 0.44,
+  0.82, 0.62, 0.52, 0.42,
+  0.84, 0.64, 0.53, 0.42,
+  0.80, 0.61, 0.50, 0.40,
+  0.74, 0.56, 0.46, 0.38
+];
+
+const LETTERS = "ABCDEFGHIKLMNOPQRSTUVWXY".split("");
+const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+document.getElementById("sheet").innerHTML = LETTERS.map(c =>
+  `<div class="cell"><img src="letters/${c}.svg" alt="handshape for ${c}">` +
+  `<div class="c">${c}</div></div>`
+).join("");
+
+const riser = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    if (e.isIntersecting) { e.target.classList.add("in"); riser.unobserve(e.target); }
   }
-  let text = "";
-  for (const i of KEY_POINTS) {
-    const lm = landmarks[i];
-    text += `point ${String(i).padStart(2)}:  ` +
-            `x=${lm.x.toFixed(4)}  y=${lm.y.toFixed(4)}  z=${lm.z.toFixed(4)}\n`;
+}, { threshold: 0.2 });
+document.querySelectorAll(".rise").forEach(el => riser.observe(el));
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const tag = document.getElementById("tag");
+
+let box = { width: 0, height: 0 };
+
+function sizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const r = canvas.getBoundingClientRect();
+  canvas.width = Math.round(r.width * dpr);
+  canvas.height = Math.round(r.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  box = { width: r.width, height: r.height };
+}
+
+sizeCanvas();
+window.addEventListener("resize", sizeCanvas);
+
+const data = await (await fetch("shapes.json")).json();
+
+let current = "B";
+let targetYaw = 0, targetPitch = 0;
+let yaw = 0, pitch = 0;
+let intro = calm ? 0 : 1;
+let running = false;
+
+const cache = {};
+
+function centred(letter) {
+  if (cache[letter]) return cache[letter];
+
+  const pts = data.shapes[letter].map(p => [p[0], p[1], p[2]]);
+
+  let cx = 0, cy = 0, cz = 0;
+  for (const p of pts) { cx += p[0]; cy += p[1]; cz += p[2]; }
+  cx /= pts.length; cy /= pts.length; cz /= pts.length;
+
+  let span = 0;
+  for (const p of pts) {
+    p[0] -= cx; p[1] -= cy; p[2] -= cz;
+    span = Math.max(span, Math.abs(p[0]), Math.abs(p[1]));
   }
-  output.textContent = text;
-};
+
+  const k = 1 / span;
+  for (const p of pts) { p[0] *= k; p[1] *= k; p[2] *= k; }
+
+  cache[letter] = pts;
+  return pts;
+}
+
+function project(pts, yaw, pitch) {
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const out = [];
+  for (const p of pts) {
+    let x = p[0] * cy - p[2] * sy;
+    let z = p[0] * sy + p[2] * cy;
+    let y = p[1] * cp - z * sp;
+    z = p[1] * sp + z * cp;
+    const s = FOCAL / (FOCAL + z);
+    out.push([x * s, y * s, z, s]);
+  }
+  return out;
+}
+
+if (!calm) {
+  window.addEventListener("pointermove", (e) => {
+    targetYaw = (e.clientX / window.innerWidth - 0.5) * 2 * MAX_YAW;
+    targetPitch = (e.clientY / window.innerHeight - 0.5) * 2 * MAX_PITCH;
+  });
+}
+
+function frame() {
+  if (!running) return;
+
+  if (intro > 0) {
+    intro -= 0.005;
+    targetYaw = Math.sin(intro * Math.PI * 2) * MAX_YAW * intro;
+  }
+
+  yaw += (targetYaw - yaw) * EASE;
+  pitch += (targetPitch - pitch) * EASE;
+
+  const W = box.width, H = box.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const pts = project(centred(current), yaw, pitch);
+  const scale = Math.min(W, H) * 0.36;
+  const ox = W / 2, oy = H / 2;
+
+  const sx = pts.map(p => ox + p[0] * scale);
+  const sy = pts.map(p => oy + p[1] * scale);
+
+  const depth = pts.map(p => p[2]);
+  const zMin = Math.min(...depth), zMax = Math.max(...depth);
+  const zRange = zMax - zMin || 1;
+  const fade = z => 0.32 + 0.68 * (1 - (z - zMin) / zRange);
+
+  ctx.beginPath();
+  ctx.moveTo(sx[PALM[0]], sy[PALM[0]]);
+  for (let i = 1; i < PALM.length; i++) ctx.lineTo(sx[PALM[i]], sy[PALM[i]]);
+  ctx.closePath();
+  const palmZ = PALM.reduce((a, i) => a + pts[i][2], 0) / PALM.length;
+  ctx.fillStyle = `rgba(236,232,225,${0.1 * fade(palmZ)})`;
+  ctx.fill();
+
+  const bones = data.connections
+    .map(([a, b]) => ({ a, b, z: (pts[a][2] + pts[b][2]) / 2 }))
+    .sort((p, q) => q.z - p.z);
+
+  for (const e of bones) {
+    const f = fade(e.z);
+    const ax = sx[e.a], ay = sy[e.a], bx = sx[e.b], by = sy[e.b];
+    const dx = bx - ax, dy = by - ay;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    const ra = RADIUS[e.a] * THICK * pts[e.a][3];
+    const rb = RADIUS[e.b] * THICK * pts[e.b][3];
+
+    ctx.beginPath();
+    ctx.moveTo(ax + nx * ra, ay + ny * ra);
+    ctx.lineTo(bx + nx * rb, by + ny * rb);
+    ctx.lineTo(bx - nx * rb, by - ny * rb);
+    ctx.lineTo(ax - nx * ra, ay - ny * ra);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(236,232,225,${f * 0.92})`;
+    ctx.fill();
+  }
+
+  const order = pts.map((p, i) => i).sort((a, b) => pts[b][2] - pts[a][2]);
+
+  for (const i of order) {
+    const f = fade(pts[i][2]);
+    ctx.beginPath();
+    ctx.arc(sx[i], sy[i], RADIUS[i] * THICK * pts[i][3], 0, 6.29);
+    ctx.fillStyle = `rgba(236,232,225,${f * 0.92})`;
+    ctx.fill();
+  }
+
+  for (const i of order) {
+    const f = fade(pts[i][2]);
+    ctx.beginPath();
+    ctx.arc(sx[i], sy[i], RADIUS[i] * 2.1 * pts[i][3], 0, 6.29);
+    ctx.fillStyle = `rgba(211,174,110,${f})`;
+    ctx.fill();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+new IntersectionObserver((entries) => {
+  const wasRunning = running;
+  running = entries[0].isIntersecting;
+  if (running && !wasRunning) { sizeCanvas(); frame(); }
+}, { threshold: 0 }).observe(canvas);
+
 </script>
 </body>
 </html>

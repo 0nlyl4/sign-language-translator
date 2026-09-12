@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>3D hand test</title>
+<style>
+  body { background: #12151a; color: #ece8e1; font-family: system-ui, sans-serif;
+         padding: 24px; margin: 0; min-height: 100vh; }
+  canvas { display: block; }
+  .keys { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 16px; max-width: 460px; }
+  .keys button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #2a323c;
+                 background: none; color: #949ca8; font: inherit; cursor: pointer; }
+  .keys button.on { background: #d3ae6e; color: #12151a; border-color: #d3ae6e; }
+  p { color: #949ca8; font-size: 14px; margin-top: 14px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="460" height="460"></canvas>
+<div class="keys" id="keys"></div>
+<p>Move the mouse anywhere on the page.</p>
+
+<script type="module">
+
+const MAX_YAW = 0.75;
+const MAX_PITCH = 0.42;
+const FOCAL = 3.0;
+const EASE = 0.11;
+
+const PALM = [0, 1, 5, 9, 13, 17];
+
+const RADIUS = [
+  1.15, 0.78, 0.68, 0.55, 0.44,
+  0.82, 0.62, 0.52, 0.42,
+  0.84, 0.64, 0.53, 0.42,
+  0.80, 0.61, 0.50, 0.40,
+  0.74, 0.56, 0.46, 0.38
+];
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const keysEl = document.getElementById("keys");
+
+const dpr = window.devicePixelRatio || 1;
+const W = canvas.width, H = canvas.height;
+canvas.width = W * dpr;
+canvas.height = H * dpr;
+canvas.style.width = W + "px";
+canvas.style.height = H + "px";
+ctx.scale(dpr, dpr);
+
+const data = await (await fetch("shapes.json")).json();
+const letters = Object.keys(data.shapes);
+
+let current = "B";
+let targetYaw = 0, targetPitch = 0;
+let yaw = 0, pitch = 0;
+let intro = 1;
+
+const cache = {};
+
+function centred(letter) {
+  if (cache[letter]) return cache[letter];
+
+  const pts = data.shapes[letter].map(p => [p[0], p[1], p[2]]);
+
+  let cx = 0, cy = 0, cz = 0;
+  for (const p of pts) { cx += p[0]; cy += p[1]; cz += p[2]; }
+  cx /= pts.length; cy /= pts.length; cz /= pts.length;
+
+  let span = 0;
+  for (const p of pts) {
+    p[0] -= cx; p[1] -= cy; p[2] -= cz;
+    span = Math.max(span, Math.abs(p[0]), Math.abs(p[1]));
+  }
+
+  const k = 1 / span;
+  for (const p of pts) { p[0] *= k; p[1] *= k; p[2] *= k; }
+
+  cache[letter] = pts;
+  return pts;
+}
+
+function project(pts, yaw, pitch) {
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const out = [];
+
+  for (const p of pts) {
+    let x = p[0] * cy - p[2] * sy;
+    let z = p[0] * sy + p[2] * cy;
+    let y = p[1] * cp - z * sp;
+    z = p[1] * sp + z * cp;
+
+    const s = FOCAL / (FOCAL + z);
+    out.push([x * s, y * s, z, s]);
+  }
+  return out;
+}
+
+window.addEventListener("pointermove", (e) => {
+  targetYaw = (e.clientX / window.innerWidth - 0.5) * 2 * MAX_YAW;
+  targetPitch = (e.clientY / window.innerHeight - 0.5) * 2 * MAX_PITCH;
+});
+
+function drawKeys() {
+  keysEl.innerHTML = letters
+    .map(c => `<button class="${c === current ? "on" : ""}" data-l="${c}">${c}</button>`)
+    .join("");
+}
+
+keysEl.addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  current = b.dataset.l;
+  drawKeys();
+});
+
+function frame() {
+  if (intro > 0) {
+    intro -= 0.005;
+    targetYaw = Math.sin(intro * Math.PI * 2) * MAX_YAW * intro;
+  }
+
+  yaw += (targetYaw - yaw) * EASE;
+  pitch += (targetPitch - pitch) * EASE;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const pts = project(centred(current), yaw, pitch);
+  const scale = W * 0.36;
+  const ox = W / 2, oy = H / 2;
+
+  const sx = pts.map(p => ox + p[0] * scale);
+  const sy = pts.map(p => oy + p[1] * scale);
+
+  const depth = pts.map(p => p[2]);
+  const zMin = Math.min(...depth), zMax = Math.max(...depth);
+  const zRange = zMax - zMin || 1;
+
+  const fade = z => 0.32 + 0.68 * (1 - (z - zMin) / zRange);
+
+  ctx.beginPath();
+  ctx.moveTo(sx[PALM[0]], sy[PALM[0]]);
+  for (let i = 1; i < PALM.length; i++) {
+    ctx.lineTo(sx[PALM[i]], sy[PALM[i]]);
+  }
+  ctx.closePath();
+  const palmZ = PALM.reduce((a, i) => a + pts[i][2], 0) / PALM.length;
+  ctx.fillStyle = `rgba(236,232,225,${0.09 * fade(palmZ)})`;
+  ctx.fill();
+
+  const bones = data.connections
+    .map(([a, b]) => ({ a, b, z: (pts[a][2] + pts[b][2]) / 2 }))
+    .sort((p, q) => q.z - p.z);
+
+  const thick = 7.0;
+
+  for (const e of bones) {
+    const f = fade(e.z);
+    const ax = sx[e.a], ay = sy[e.a];
+    const bx = sx[e.b], by = sy[e.b];
+
+    const dx = bx - ax, dy = by - ay;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+
+    const ra = RADIUS[e.a] * thick * pts[e.a][3];
+    const rb = RADIUS[e.b] * thick * pts[e.b][3];
+
+    ctx.beginPath();
+    ctx.moveTo(ax + nx * ra, ay + ny * ra);
+    ctx.lineTo(bx + nx * rb, by + ny * rb);
+    ctx.lineTo(bx - nx * rb, by - ny * rb);
+    ctx.lineTo(ax - nx * ra, ay - ny * ra);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(236,232,225,${f * 0.92})`;
+    ctx.fill();
+  }
+
+  const order = pts.map((p, i) => i).sort((a, b) => pts[b][2] - pts[a][2]);
+
+  for (const i of order) {
+    const f = fade(pts[i][2]);
+    const r = RADIUS[i] * thick * pts[i][3];
+
+    ctx.beginPath();
+    ctx.arc(sx[i], sy[i], r, 0, 6.29);
+    ctx.fillStyle = `rgba(236,232,225,${f * 0.92})`;
+    ctx.fill();
+  }
+
+  for (const i of order) {
+    const f = fade(pts[i][2]);
+    ctx.beginPath();
+    ctx.arc(sx[i], sy[i], RADIUS[i] * 2.1 * pts[i][3], 0, 6.29);
+    ctx.fillStyle = `rgba(211,174,110,${f})`;
+    ctx.fill();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+drawKeys();
+frame();
+
+</script>
+</body>
+</html>
