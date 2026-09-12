@@ -40,8 +40,9 @@ nav { position: sticky; top: 0; z-index: 20;
       border-bottom: 1px solid var(--hair); }
 nav .row { max-width: 1120px; margin: 0 auto; padding: 15px 28px;
            display: flex; justify-content: space-between; align-items: center; }
-nav .mark { font-weight: 600; letter-spacing: -0.02em; }
-nav .to { font-size: 14px; color: var(--cool);
+nav .mark { font-weight: 600; letter-spacing: -0.02em; font-size: 15px; }
+nav .to { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase;
+          color: var(--cool); padding: 8px 0;
           transition: color 140ms ease; }
 nav .to:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
 @media (hover: hover) { nav .to:hover { color: var(--warm); } }
@@ -158,7 +159,7 @@ footer a { color: var(--warm); text-decoration: underline; text-underline-offset
 <nav>
   <div class="row">
     <span class="mark">ASL fingerspelling</span>
-    <a class="to" href="app.html">Try it with your camera →</a>
+        <a class="to" href="app.html">Explore 24 signs →</a>
   </div>
 </nav>
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fingerspelling reader</title>
+<title>Explore the signs — ASL fingerspelling</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -15,7 +15,6 @@
   --hair: rgba(255,255,255,0.09);
   --hair-strong: rgba(255,255,255,0.18);
   --warm: #ece8e1;
-  --cool: #949cа8;
   --cool: #949ca8;
   --dim: #5c646f;
   --brass: #d3ae6e;
@@ -30,40 +29,56 @@ body {
   font-family: "Instrument Sans", system-ui, sans-serif;
   font-feature-settings: "tnum";
   line-height: 1.6;
-  padding: 0 24px 96px;
   -webkit-font-smoothing: antialiased;
 }
 
-.wrap { max-width: 1060px; margin: 0 auto; }
+.wrap { max-width: 1060px; margin: 0 auto; padding: 0 28px; }
 button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; }
-a { color: var(--warm); text-underline-offset: 3px; }
+a { color: var(--warm); text-decoration: none; }
 
-/* ---------- hero ---------- */
+/* ---------- nav ---------- */
 
-.hero {
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 56px;
-  align-items: center;
-  padding: 92px 0 100px;
+nav { position: sticky; top: 0; z-index: 20;
+      background: rgba(18,21,26,0.85); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--hair); }
+nav .row { max-width: 1060px; margin: 0 auto; padding: 15px 28px;
+           display: flex; justify-content: space-between; align-items: center; }
+nav .mark { font-weight: 600; letter-spacing: -0.02em; font-size: 15px; }
+nav .to { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase;
+          color: var(--cool); padding: 8px 0;
+          transition: color 140ms ease; }
+nav .to:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+@media (hover: hover) { nav .to:hover { color: var(--warm); } }
+
+/* ---------- head ---------- */
+
+.head { padding: 44px 0 28px; }
+.head h1 { font-size: clamp(26px, 3.4vw, 36px); font-weight: 600;
+           letter-spacing: -0.028em; line-height: 1.1; }
+.head p { color: var(--cool); margin-top: 10px; max-width: 52ch; font-size: 16px; }
+
+/* ---------- tool ---------- */
+
+.top { display: grid; grid-template-columns: 1fr 232px; gap: 24px; align-items: start; }
+
+.viewer { position: relative; }
+canvas {
+  width: 100%; display: block; border-radius: 14px; aspect-ratio: 4 / 3;
+  background: #0a0c0f; border: 1px solid var(--hair);
 }
 
-h1 {
-  font-size: clamp(36px, 5.4vw, 60px);
-  font-weight: 600;
-  letter-spacing: -0.032em;
-  line-height: 1.02;
+.gate {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; text-align: center; padding: 24px;
+  background: rgba(10,12,15,0.92); border-radius: 14px;
 }
-
-.lede { color: var(--cool); margin-top: 22px; max-width: 42ch; font-size: 17px; }
+.gate.off { display: none; }
+.gate .why { font-size: 13px; color: var(--cool); max-width: 34ch; }
 
 .start {
-  margin-top: 34px;
-  background: var(--warm);
-  color: var(--void);
-  padding: 15px 30px;
-  border-radius: 999px;
-  font-weight: 500;
+  background: var(--warm); color: var(--void);
+  padding: 13px 28px; border-radius: 999px; font-weight: 500;
   transition: transform 140ms var(--ease), opacity 140ms var(--ease);
 }
 .start:active { transform: scale(0.97); }
@@ -71,23 +86,6 @@ h1 {
 .start:focus-visible { outline: 2px solid var(--brass); outline-offset: 4px; }
 @media (hover: hover) and (pointer: fine) {
   .start:hover:not(:disabled) { transform: translateY(-2px); }
-}
-
-.plate { display: flex; justify-content: center; }
-.plate img { width: 100%; max-height: 340px; object-fit: contain; filter: invert(1); }
-
-/* ---------- tool ---------- */
-
-#stage { display: none; padding: 52px 0 8px; }
-#stage.on { display: block; }
-#hero.off { display: none; }
-
-.top { display: grid; grid-template-columns: 1fr 232px; gap: 24px; align-items: start; }
-
-.viewer { position: relative; }
-canvas {
-  width: 100%; display: block; border-radius: 14px;
-  background: #000; border: 1px solid var(--hair);
 }
 
 .readout {
@@ -161,22 +159,9 @@ section.band { border-top: 1px solid var(--hair); padding-top: 44px; margin-top:
 h2 { font-size: 13px; font-weight: 500; color: var(--cool); margin-bottom: 30px; }
 
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; }
-.stat .n { font-size: 46px; font-weight: 600; letter-spacing: -0.035em; color: var(--brass); line-height: 1.05; }
+.stat .n { font-size: 46px; font-weight: 600; letter-spacing: -0.035em;
+           color: var(--brass); line-height: 1.05; }
 .stat .l { font-size: 14px; color: var(--cool); margin-top: 8px; }
-
-.sheet {
-  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
-  background: var(--hair); border: 1px solid var(--hair); border-radius: 12px;
-  overflow: hidden;
-}
-.cell {
-  background: var(--surface); padding: 14px 8px 10px;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-}
-.cell img { width: 100%; height: 62px; object-fit: contain; filter: invert(1); }
-.cell .c { font-size: 13px; color: var(--cool); }
-.cell.empty { color: var(--dim); }
-.cell.empty .box { height: 62px; display: flex; align-items: center; font-size: 12px; }
 
 .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
 .step { border-top: 1px solid var(--hair-strong); padding-top: 14px; }
@@ -188,19 +173,16 @@ h2 { font-size: 13px; font-weight: 500; color: var(--cool); margin-bottom: 30px;
 .limit { font-size: 14px; color: var(--cool); }
 .limit b { display: block; color: var(--warm); font-weight: 500; margin-bottom: 5px; }
 
-footer { margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--hair);
+footer { margin-top: 64px; padding: 28px 0 64px; border-top: 1px solid var(--hair);
          font-size: 14px; color: var(--cool); }
+footer a { text-decoration: underline; text-underline-offset: 3px; }
 
 @media (max-width: 860px) {
-  .hero { grid-template-columns: 1fr; gap: 28px; padding: 44px 0 52px; }
-  .plate { order: -1; }
-  .plate img { max-height: 180px; }
   .top { grid-template-columns: 1fr; }
   .target { display: flex; align-items: center; gap: 20px; text-align: left; }
   .target img { width: 94px; height: 94px; }
   .target .gap { padding: 28px 0; }
   .stats, .steps, .limits { grid-template-columns: repeat(2, 1fr); }
-  .sheet { grid-template-columns: repeat(4, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -209,44 +191,49 @@ footer { margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--hair);
 </style>
 </head>
 <body>
+
+<nav>
+  <div class="row">
+    <a class="mark" href="index.html">ASL fingerspelling</a>
+    <a class="to" href="index.html">← Back to the story</a>
+  </div>
+</nav>
+
 <div class="wrap">
 
-  <section class="hero" id="hero">
-    <div>
-      <h1>Read fingerspelling from your camera</h1>
-      <p class="lede">
-        Hold a letter of the American manual alphabet in front of your camera
-        and it turns into text. The model runs inside this page, so the video
-        never leaves your device.
-      </p>
-      <button class="start" id="start" disabled>Loading the model…</button>
-    </div>
-    <div class="plate"><img id="heroImg" src="letters/A.svg" alt="the handshape for A"></div>
-  </section>
+  <div class="head">
+    <h1>Explore the signs</h1>
+    <p>
+      Pick a letter, copy the handshape, and hold it. Everything runs on this
+      device — the video never leaves your browser.
+    </p>
+  </div>
 
-  <section id="stage">
-    <div class="top">
-      <div class="viewer">
-        <canvas id="canvas" width="640" height="480"></canvas>
-        <div class="readout" id="readout"><span class="glyph"></span><span class="pct"></span></div>
-        <div class="hold" id="hold"></div>
-      </div>
-      <div class="target" id="target"></div>
-    </div>
-
-    <div class="strip" id="strip"></div>
-    <p class="note">Pick a letter to see its handshape. J and Z are left out because they need movement.</p>
-
-    <div class="output" id="output">
-      <div class="text" id="text"></div>
-      <div class="tools">
-        <button class="tool" id="tSpace">Add space</button>
-        <button class="tool" id="tBack">Delete</button>
-        <button class="tool" id="tClear">Clear</button>
-        <button class="tool" id="tMirror">Mirror the camera</button>
+  <div class="top">
+    <div class="viewer">
+      <canvas id="canvas" width="640" height="480"></canvas>
+      <div class="readout" id="readout"><span class="glyph"></span><span class="pct"></span></div>
+      <div class="hold" id="hold"></div>
+      <div class="gate" id="gate">
+        <button class="start" id="start" disabled>Loading the model…</button>
+        <p class="why">Your browser will ask for camera access. Nothing is uploaded or recorded.</p>
       </div>
     </div>
-  </section>
+    <div class="target" id="target"></div>
+  </div>
+
+  <div class="strip" id="strip"></div>
+  <p class="note">J and Z are left out because they are drawn in the air, and a single frame cannot capture a path.</p>
+
+  <div class="output" id="output">
+    <div class="text" id="text"></div>
+    <div class="tools">
+      <button class="tool" id="tSpace">Add space</button>
+      <button class="tool" id="tBack">Delete</button>
+      <button class="tool" id="tClear">Clear</button>
+      <button class="tool" id="tMirror">Mirror the camera</button>
+    </div>
+  </div>
 
   <section class="band">
     <h2>Measured across two independent recording sessions</h2>
@@ -256,11 +243,6 @@ footer { margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--hair);
       <div class="stat"><div class="n">14,400</div><div class="l">Samples recorded by hand for this project</div></div>
       <div class="stat"><div class="n">24</div><div class="l">Letters, the full static alphabet</div></div>
     </div>
-  </section>
-
-  <section class="band">
-    <h2>The alphabet it reads</h2>
-    <div class="sheet" id="sheet"></div>
   </section>
 
   <section class="band">
@@ -313,10 +295,10 @@ const pct = readout.querySelector(".pct");
 const holdBar = document.getElementById("hold");
 const stripEl = document.getElementById("strip");
 const targetEl = document.getElementById("target");
-const sheetEl = document.getElementById("sheet");
 const outputEl = document.getElementById("output");
 const textEl = document.getElementById("text");
 const startBtn = document.getElementById("start");
+const gate = document.getElementById("gate");
 
 function normalizeLandmarks(row) {
   const points = [];
@@ -412,21 +394,6 @@ function drawStrip() {
   stripEl.innerHTML = html;
 }
 
-function drawSheet() {
-  let html = "";
-  for (const c of ALPHABET) {
-    if (MOVING.includes(c)) continue;
-    if (known.has(c)) {
-      html += `<div class="cell"><img src="letters/${c}.svg" ` +
-              `alt="handshape for ${c}"><div class="c">${c}</div></div>`;
-    } else {
-      html += `<div class="cell empty"><div class="box">not loaded</div>` +
-              `<div class="c">${c}</div></div>`;
-    }
-  }
-  sheetEl.innerHTML = html;
-}
-
 function drawTarget() {
   if (known.has(picked)) {
     targetEl.innerHTML =
@@ -434,7 +401,7 @@ function drawTarget() {
       `<div><div class="name">${picked}</div>` +
       `<div class="hint">Copy this shape</div></div>`;
   } else {
-    targetEl.innerHTML = `<div class="gap">No drawing for ${picked} yet</div>`;
+    targetEl.innerHTML = `<div class="gap">No drawing for ${picked}</div>`;
   }
 }
 
@@ -451,6 +418,9 @@ stripEl.addEventListener("click", (e) => {
   drawTarget();
 });
 
+drawStrip();
+drawText();
+
 async function boot() {
   forest = await (await fetch("model.json")).json();
 
@@ -462,12 +432,7 @@ async function boot() {
     } catch (e) { /* ignore */ }
   }
 
-  drawSheet();
-
-  if (!known.has("A")) {
-    const first = [...known][0];
-    if (first) document.getElementById("heroImg").src = `letters/${first}.svg`;
-  }
+  drawTarget();
 
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm"
@@ -505,12 +470,7 @@ async function begin() {
   video.srcObject = stream;
   await video.play();
 
-  document.getElementById("hero").classList.add("off");
-  document.getElementById("stage").classList.add("on");
-
-  drawStrip();
-  drawTarget();
-  drawText();
+  gate.classList.add("off");
 
   function loop() {
     if (mirror) {
