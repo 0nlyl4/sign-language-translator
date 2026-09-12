@@ -31,6 +31,7 @@ body {
 
 .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
 button, a { font: inherit; color: inherit; }
+button { background: none; border: none; cursor: pointer; }
 a { text-decoration: none; }
 
 /* ---------- background ---------- */
@@ -98,11 +99,27 @@ h1 { font-size: clamp(38px, 5.2vw, 60px); font-weight: 600;
 .cta:focus-visible { outline: 2px solid var(--brass); outline-offset: 4px; }
 @media (hover: hover) { .cta:hover { transform: translateY(-2px); } }
 
-.stage { position: relative; aspect-ratio: 1; max-height: 520px; }
+/* ---------- showcase ---------- */
+
+.showcase { display: flex; flex-direction: column; gap: 12px; }
+
+.stage { position: relative; width: 100%; aspect-ratio: 1; max-height: 560px; }
 .stage canvas { display: block; width: 100%; height: 100%; }
-.stage .tag { position: absolute; left: 0; bottom: 0;
-              font-size: 12px; letter-spacing: 0.1em;
-              text-transform: uppercase; color: var(--dim); }
+
+.picker { display: flex; gap: 2px; }
+
+.pk {
+  flex: 1; padding: 7px 0 5px;
+  font-size: 12px; line-height: 1; color: var(--dim);
+  border-top: 1px solid var(--hair);
+  transition: color 150ms ease, border-color 150ms ease;
+}
+.pk.on { color: var(--brass); border-top-color: var(--brass); }
+.pk:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+@media (hover: hover) { .pk:hover { color: var(--warm); } }
+
+.tag { font-size: 12px; letter-spacing: 0.1em;
+       text-transform: uppercase; color: var(--dim); }
 
 /* ---------- sections ---------- */
 
@@ -176,7 +193,9 @@ footer a { color: var(--warm); text-decoration: underline; text-underline-offset
   .bg .motif { top: 8%; right: -14vw; font-size: 40vw; }
   .bg .glow { top: 16%; left: 55%; }
   .hero { grid-template-columns: 1fr; min-height: 0; gap: 28px; padding: 36px 0 48px; }
-  .stage { order: -1; max-height: 300px; }
+  .showcase { order: -1; }
+  .stage { max-height: 300px; }
+  .pk { font-size: 11px; }
   .cards { grid-template-columns: 1fr; }
   .compare { grid-template-columns: 1fr; gap: 26px; padding: 24px; }
   .sheet { grid-template-columns: repeat(4, 1fr); }
@@ -215,9 +234,10 @@ footer a { color: var(--warm); text-decoration: underline; text-underline-offset
       </p>
       <a class="cta" href="app.html">Explore the signs</a>
     </div>
-    <div class="stage">
-      <canvas id="c"></canvas>
-      <div class="tag" id="tag">B — from the dataset</div>
+    <div class="showcase">
+      <div class="stage"><canvas id="c"></canvas></div>
+      <div class="picker" id="picker" role="group" aria-label="Choose a handshape"></div>
+      <p class="tag" id="tag">B — median of 600 samples</p>
     </div>
   </div>
 
@@ -306,8 +326,28 @@ const MAX_PITCH = 0.42;
 const FOCAL = 3.0;
 const EASE = 0.11;
 const THICK = 7.4;
+const FILL = 0.46;
+const SIZE_MIX = 1.0;
+const CYCLE_MS = 2600;
+const MORPH_MS = 420;
+const GHOST_MS = 900;
+const GHOST_ALPHA = 0.30;
+const MEASURE_MIN_W = 420;
 
+const FONT = "'Instrument Sans', system-ui, sans-serif";
+const INK_DIM = "rgba(92,100,111,1)";
+const INK_LINE = "rgba(148,156,168,0.26)";
+const INK_BRASS = "rgba(211,174,110,0.92)";
+
+const ANCHOR = [0, 9];
+const SPREAD_PAIR = [8, 12];
 const PALM = [0, 1, 5, 9, 13, 17];
+
+const LEADERS = [
+  { i: 4, label: "04 THUMB TIP", side: -1, y: 0.34 },
+  { i: 8, label: "08 INDEX TIP", side: 1, y: 0.17 }
+];
+
 const RADIUS = [
   1.15, 0.78, 0.68, 0.55, 0.44,
   0.82, 0.62, 0.52, 0.42,
@@ -334,6 +374,7 @@ document.querySelectorAll(".rise").forEach(el => riser.observe(el));
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 const tag = document.getElementById("tag");
+const picker = document.getElementById("picker");
 
 let box = { width: 0, height: 0 };
 
@@ -351,35 +392,162 @@ window.addEventListener("resize", sizeCanvas);
 
 const data = await (await fetch("shapes.json")).json();
 
-let current = "B";
+const shapes = {};
+
+function prepare() {
+  const halves = {};
+  let biggest = 0;
+
+  for (const letter of LETTERS) {
+    const pts = data.shapes[letter].map(p => [p[0], p[1], p[2]]);
+    const a = pts[ANCHOR[0]], b = pts[ANCHOR[1]];
+
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+    const palm = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+
+    const ax = (a[0] + b[0]) / 2;
+    const ay = (a[1] + b[1]) / 2;
+    const az = (a[2] + b[2]) / 2;
+
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    for (const p of pts) {
+      p[0] = (p[0] - ax) / palm;
+      p[1] = (p[1] - ay) / palm;
+      p[2] = (p[2] - az) / palm;
+
+      if (p[0] < minX) minX = p[0];
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] < minY) minY = p[1];
+      if (p[1] > maxY) maxY = p[1];
+    }
+
+    const own = Math.max(maxX - minX, maxY - minY) / 2 || 1;
+    halves[letter] = own;
+    if (own > biggest) biggest = own;
+
+    shapes[letter] = pts;
+  }
+
+  let gMinX = Infinity, gMaxX = -Infinity;
+  let gMinY = Infinity, gMaxY = -Infinity;
+  let gMinZ = Infinity, gMaxZ = -Infinity;
+
+  for (const letter of LETTERS) {
+    const ratio = halves[letter] / biggest;
+    const k = Math.pow(ratio, SIZE_MIX) / halves[letter];
+
+    for (const p of shapes[letter]) {
+      p[0] *= k;
+      p[1] *= k;
+      p[2] *= k;
+
+      if (p[0] < gMinX) gMinX = p[0];
+      if (p[0] > gMaxX) gMaxX = p[0];
+      if (p[1] < gMinY) gMinY = p[1];
+      if (p[1] > gMaxY) gMaxY = p[1];
+      if (p[2] < gMinZ) gMinZ = p[2];
+      if (p[2] > gMaxZ) gMaxZ = p[2];
+    }
+  }
+
+  const gx = (gMinX + gMaxX) / 2;
+  const gy = (gMinY + gMaxY) / 2;
+  const gz = (gMinZ + gMaxZ) / 2;
+
+  for (const letter of LETTERS) {
+    for (const p of shapes[letter]) {
+      p[0] -= gx;
+      p[1] -= gy;
+      p[2] -= gz;
+    }
+  }
+}
+
+prepare();
+
+let toLetter = "B";
+let fromPts = shapes[toLetter].map(p => p.slice());
+let morph = 1;
+let sinceSwitch = 0;
+let auto = !calm;
+
+let ghostPts = null;
+let ghost = 0;
+
 let targetYaw = 0, targetPitch = 0;
 let yaw = 0, pitch = 0;
 let intro = calm ? 0 : 1;
 let running = false;
+let lastTime = 0;
 
-const cache = {};
+function smooth(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
 
-function centred(letter) {
-  if (cache[letter]) return cache[letter];
+function currentPts() {
+  const e = smooth(morph);
+  const target = shapes[toLetter];
+  const out = [];
+  for (let i = 0; i < fromPts.length; i++) {
+    const a = fromPts[i], b = target[i];
+    out.push([
+      a[0] + (b[0] - a[0]) * e,
+      a[1] + (b[1] - a[1]) * e,
+      a[2] + (b[2] - a[2]) * e
+    ]);
+  }
+  return out;
+}
 
-  const pts = data.shapes[letter].map(p => [p[0], p[1], p[2]]);
+function distance(shape, a, b) {
+  return Math.hypot(
+    shape[a][0] - shape[b][0],
+    shape[a][1] - shape[b][1],
+    shape[a][2] - shape[b][2]
+  );
+}
 
-  let cx = 0, cy = 0, cz = 0;
-  for (const p of pts) { cx += p[0]; cy += p[1]; cz += p[2]; }
-  cx /= pts.length; cy /= pts.length; cz /= pts.length;
+function spread(shape) {
+  const palm = distance(shape, ANCHOR[0], ANCHOR[1]) || 1;
+  return distance(shape, SPREAD_PAIR[0], SPREAD_PAIR[1]) / palm;
+}
 
-  let span = 0;
-  for (const p of pts) {
-    p[0] -= cx; p[1] -= cy; p[2] -= cz;
-    span = Math.max(span, Math.abs(p[0]), Math.abs(p[1]));
+function paintPicker() {
+  for (const el of picker.children) {
+    el.classList.toggle("on", el.dataset.letter === toLetter);
+  }
+}
+
+function switchTo(letter) {
+  if (letter === toLetter && morph >= 1) return;
+
+  fromPts = currentPts();
+
+  if (!calm) {
+    ghostPts = fromPts;
+    ghost = 1;
   }
 
-  const k = 1 / span;
-  for (const p of pts) { p[0] *= k; p[1] *= k; p[2] *= k; }
-
-  cache[letter] = pts;
-  return pts;
+  toLetter = letter;
+  morph = calm ? 1 : 0;
+  sinceSwitch = 0;
+  tag.textContent = `${letter} — median of 600 samples`;
+  paintPicker();
 }
+
+picker.innerHTML = LETTERS.map(c =>
+  `<button class="pk" data-letter="${c}" aria-label="Show handshape for ${c}">${c}</button>`
+).join("");
+paintPicker();
+
+picker.addEventListener("click", (e) => {
+  const key = e.target.closest(".pk");
+  if (!key) return;
+  auto = false;
+  switchTo(key.dataset.letter);
+});
 
 function project(pts, yaw, pitch) {
   const cy = Math.cos(yaw), sy = Math.sin(yaw);
@@ -403,22 +571,10 @@ if (!calm) {
   });
 }
 
-function frame() {
-  if (!running) return;
-
-  if (intro > 0) {
-    intro -= 0.005;
-    targetYaw = Math.sin(intro * Math.PI * 2) * MAX_YAW * intro;
-  }
-
-  yaw += (targetYaw - yaw) * EASE;
-  pitch += (targetPitch - pitch) * EASE;
-
+function drawHand(shape, alpha) {
   const W = box.width, H = box.height;
-  ctx.clearRect(0, 0, W, H);
-
-  const pts = project(centred(current), yaw, pitch);
-  const scale = Math.min(W, H) * 0.36;
+  const pts = project(shape, yaw, pitch);
+  const scale = Math.min(W, H) * FILL;
   const ox = W / 2, oy = H / 2;
 
   const sx = pts.map(p => ox + p[0] * scale);
@@ -434,7 +590,7 @@ function frame() {
   for (let i = 1; i < PALM.length; i++) ctx.lineTo(sx[PALM[i]], sy[PALM[i]]);
   ctx.closePath();
   const palmZ = PALM.reduce((a, i) => a + pts[i][2], 0) / PALM.length;
-  ctx.fillStyle = `rgba(236,232,225,${0.1 * fade(palmZ)})`;
+  ctx.fillStyle = `rgba(236,232,225,${0.1 * fade(palmZ) * alpha})`;
   ctx.fill();
 
   const bones = data.connections
@@ -456,7 +612,7 @@ function frame() {
     ctx.lineTo(bx - nx * rb, by - ny * rb);
     ctx.lineTo(ax - nx * ra, ay - ny * ra);
     ctx.closePath();
-    ctx.fillStyle = `rgba(236,232,225,${f * 0.92})`;
+    ctx.fillStyle = `rgba(236,232,225,${f * 0.92 * alpha})`;
     ctx.fill();
   }
 
@@ -466,7 +622,7 @@ function frame() {
     const f = fade(pts[i][2]);
     ctx.beginPath();
     ctx.arc(sx[i], sy[i], RADIUS[i] * THICK * pts[i][3], 0, 6.29);
-    ctx.fillStyle = `rgba(236,232,225,${f * 0.92})`;
+    ctx.fillStyle = `rgba(236,232,225,${f * 0.92 * alpha})`;
     ctx.fill();
   }
 
@@ -474,9 +630,129 @@ function frame() {
     const f = fade(pts[i][2]);
     ctx.beginPath();
     ctx.arc(sx[i], sy[i], RADIUS[i] * 2.1 * pts[i][3], 0, 6.29);
-    ctx.fillStyle = `rgba(211,174,110,${f})`;
+    ctx.fillStyle = `rgba(211,174,110,${f * alpha})`;
     ctx.fill();
   }
+
+  return { pts, sx, sy };
+}
+
+function drawMeasure(hand, shape) {
+  const W = box.width, H = box.height;
+  const { pts, sx, sy } = hand;
+
+  ctx.lineWidth = 1;
+  ctx.textBaseline = "alphabetic";
+
+  if (W >= MEASURE_MIN_W) {
+    ctx.font = `500 10px ${FONT}`;
+    ctx.letterSpacing = "0.12em";
+    ctx.textAlign = "left";
+
+    for (const m of LEADERS) {
+      const labelY = Math.round(m.y * H);
+      const right = m.side > 0;
+      const w = ctx.measureText(m.label).width;
+
+      ctx.fillStyle = INK_DIM;
+      ctx.fillText(m.label, right ? W - w : 0, labelY);
+
+      const bendX = right ? W - w - 10 : w + 10;
+      const elbowX = bendX + (right ? -16 : 16);
+      const lineY = labelY - 4;
+
+      const px = sx[m.i], py = sy[m.i];
+      const stop = RADIUS[m.i] * THICK * pts[m.i][3] + 6;
+      const dx = px - elbowX, dy = py - lineY;
+      const len = Math.hypot(dx, dy) || 1;
+
+      ctx.strokeStyle = INK_LINE;
+      ctx.beginPath();
+      ctx.moveTo(bendX, lineY);
+      ctx.lineTo(elbowX, lineY);
+      ctx.lineTo(px - (dx / len) * stop, py - (dy / len) * stop);
+      ctx.stroke();
+    }
+  }
+
+  ctx.font = `500 10px ${FONT}`;
+  ctx.letterSpacing = "0.12em";
+  ctx.textAlign = "left";
+  ctx.fillStyle = INK_DIM;
+  ctx.fillText("INDEX-MIDDLE SPREAD", 0, H - 19);
+
+  ctx.letterSpacing = "0em";
+  ctx.font = `600 14px ${FONT}`;
+  ctx.fillStyle = INK_BRASS;
+  const value = spread(shape).toFixed(2);
+  ctx.fillText(value, 0, H - 3);
+
+  const valueW = ctx.measureText(value).width;
+  ctx.font = `500 10px ${FONT}`;
+  ctx.letterSpacing = "0.12em";
+  ctx.fillStyle = INK_DIM;
+  ctx.fillText("\u00D7 PALM", valueW + 7, H - 3);
+
+  const gaugeX = W - 24, gaugeY = H - 8, gaugeR = 19;
+  const textRight = W - 58;
+
+  ctx.textAlign = "right";
+  ctx.font = `500 10px ${FONT}`;
+  ctx.letterSpacing = "0.12em";
+  ctx.fillStyle = INK_DIM;
+  ctx.fillText("VIEW ANGLE", textRight, H - 19);
+
+  const deg = Math.round(yaw * 180 / Math.PI);
+  ctx.letterSpacing = "0em";
+  ctx.font = `600 14px ${FONT}`;
+  ctx.fillStyle = INK_BRASS;
+  ctx.fillText(`${deg < 0 ? "\u2212" : ""}${Math.abs(deg)}\u00B0`, textRight, H - 3);
+
+  ctx.strokeStyle = INK_LINE;
+  ctx.beginPath();
+  ctx.arc(gaugeX, gaugeY, gaugeR, -Math.PI / 2 - MAX_YAW, -Math.PI / 2 + MAX_YAW);
+  ctx.stroke();
+
+  const needle = -Math.PI / 2 + yaw;
+  ctx.strokeStyle = INK_BRASS;
+  ctx.beginPath();
+  ctx.moveTo(gaugeX, gaugeY);
+  ctx.lineTo(gaugeX + Math.cos(needle) * gaugeR, gaugeY + Math.sin(needle) * gaugeR);
+  ctx.stroke();
+
+  ctx.letterSpacing = "0em";
+  ctx.textAlign = "left";
+}
+
+function frame(now) {
+  if (!running) return;
+
+  const dt = lastTime ? Math.min(now - lastTime, 100) : 16;
+  lastTime = now;
+
+  if (morph < 1) morph = Math.min(1, morph + dt / MORPH_MS);
+  if (ghost > 0) ghost = Math.max(0, ghost - dt / GHOST_MS);
+
+  sinceSwitch += dt;
+  if (auto && morph >= 1 && sinceSwitch >= CYCLE_MS) {
+    const next = (LETTERS.indexOf(toLetter) + 1) % LETTERS.length;
+    switchTo(LETTERS[next]);
+  }
+
+  if (intro > 0) {
+    intro -= 0.005;
+    targetYaw = Math.sin(intro * Math.PI * 2) * MAX_YAW * intro;
+  }
+
+  yaw += (targetYaw - yaw) * EASE;
+  pitch += (targetPitch - pitch) * EASE;
+
+  ctx.clearRect(0, 0, box.width, box.height);
+
+  if (ghost > 0 && ghostPts) drawHand(ghostPts, GHOST_ALPHA * smooth(ghost));
+
+  const shape = currentPts();
+  drawMeasure(drawHand(shape, 1), shape);
 
   requestAnimationFrame(frame);
 }
@@ -484,7 +760,11 @@ function frame() {
 new IntersectionObserver((entries) => {
   const wasRunning = running;
   running = entries[0].isIntersecting;
-  if (running && !wasRunning) { sizeCanvas(); frame(); }
+  if (running && !wasRunning) {
+    sizeCanvas();
+    lastTime = 0;
+    requestAnimationFrame(frame);
+  }
 }, { threshold: 0 }).observe(canvas);
 
 </script>
