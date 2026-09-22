@@ -9,17 +9,23 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --void: #12151a;
-  --surface: #1a1f26;
-  --raised: #222831;
-  --hair: rgba(255,255,255,0.09);
-  --hair-strong: rgba(255,255,255,0.18);
+  --void: #0f1216;
+  --surface: #191e25;
+  --raised: #202730;
+  --hair: rgba(255,255,255,0.08);
+  --hair-lit: rgba(255,255,255,0.2);
   --warm: #ece8e1;
   --cool: #949ca8;
   --dim: #5c646f;
   --brass: #d3ae6e;
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
+
+  --page: 84rem;
+  --gutter: clamp(1.25rem, 3vw, 3rem);
+  --round: 0.88rem;
 }
+
+html { font-size: clamp(16px, 0.4vw + 10.9px, 21px); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -32,53 +38,102 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.wrap { max-width: 1060px; margin: 0 auto; padding: 0 28px; }
+.wrap { max-width: var(--page); margin: 0 auto; padding: 0 var(--gutter); }
 button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; }
 a { color: var(--warm); text-decoration: none; }
+
+/* ---------- background ---------- */
+
+.bg {
+  position: fixed; inset: 0; z-index: -1;
+  pointer-events: none; overflow: hidden;
+}
+
+.bg .orb {
+  position: absolute; top: 18%; left: 60%;
+  width: 60vw; height: 60vw; max-width: 56rem; max-height: 56rem;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle,
+              rgba(150,170,200,0.09) 0%,
+              rgba(150,170,200,0.04) 38%,
+              transparent 70%);
+}
+
+.bg .motif {
+  position: absolute; top: 12%; right: -6vw;
+  font-size: clamp(16rem, 34vw, 34rem);
+  font-weight: 600; line-height: 0.78;
+  letter-spacing: -0.05em;
+  color: rgba(236,232,225,0.03);
+  user-select: none;
+}
+
+.bg .vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 55% 32%,
+              transparent 42%, rgba(6,8,11,0.55) 100%);
+}
+
+/* ---------- proximity ---------- */
+
+.glow { position: relative; }
+.glow > * { position: relative; z-index: 1; }
+.glow::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(13rem circle at var(--mx, 50%) var(--my, 50%),
+              rgba(211,174,110,0.13), transparent 64%);
+  opacity: var(--near, 0);
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
 
 /* ---------- nav ---------- */
 
 nav { position: sticky; top: 0; z-index: 20;
-      background: rgba(18,21,26,0.85); backdrop-filter: blur(14px);
+      background: rgba(15,18,22,0.85); backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--hair); }
-nav .row { max-width: 1060px; margin: 0 auto; padding: 15px 28px;
+nav .row { max-width: var(--page); margin: 0 auto;
+           padding: 0.94rem var(--gutter);
            display: flex; justify-content: space-between; align-items: center; }
-nav .mark { font-weight: 600; letter-spacing: -0.02em; font-size: 15px; }
-nav .to { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase;
-          color: var(--cool); padding: 8px 0;
+nav .mark { font-weight: 600; letter-spacing: -0.02em; font-size: 0.94rem; }
+nav .to { font-size: 0.81rem; letter-spacing: 0.06em; text-transform: uppercase;
+          color: var(--cool); padding: 0.5rem 0;
           transition: color 140ms ease; }
 nav .to:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
 @media (hover: hover) { nav .to:hover { color: var(--warm); } }
 
 /* ---------- head ---------- */
 
-.head { padding: 44px 0 28px; }
-.head h1 { font-size: clamp(26px, 3.4vw, 36px); font-weight: 600;
+.head { padding: 2.75rem 0 1.75rem; }
+.head h1 { font-size: clamp(1.63rem, 2.8vw, 2.25rem); font-weight: 600;
            letter-spacing: -0.028em; line-height: 1.1; }
-.head p { color: var(--cool); margin-top: 10px; max-width: 52ch; font-size: 16px; }
+.head p { color: var(--cool); margin-top: 0.63rem; max-width: 52ch; font-size: 1rem; }
 
 /* ---------- tool ---------- */
 
-.top { display: grid; grid-template-columns: 1fr 232px; gap: 24px; align-items: start; }
+.top { display: grid; grid-template-columns: 1fr 20rem; gap: 1.5rem; }
 
 .viewer { position: relative; }
 canvas {
-  width: 100%; display: block; border-radius: 14px; aspect-ratio: 4 / 3;
+  width: 100%; display: block; border-radius: var(--round); aspect-ratio: 4 / 3;
   background: #0a0c0f; border: 1px solid var(--hair);
 }
 
 .gate {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 14px; text-align: center; padding: 24px;
-  background: rgba(10,12,15,0.92); border-radius: 14px;
+  gap: 0.88rem; text-align: center; padding: 1.5rem;
+  background: rgba(10,12,15,0.92); border-radius: var(--round);
 }
 .gate.off { display: none; }
-.gate .why { font-size: 13px; color: var(--cool); max-width: 34ch; }
+.gate .why { font-size: 0.81rem; color: var(--cool); max-width: 34ch; }
+.gate .why.bad { color: var(--brass); }
 
 .start {
   background: var(--warm); color: var(--void);
-  padding: 13px 28px; border-radius: 999px; font-weight: 500;
+  padding: 0.81rem 1.75rem; border-radius: 999px; font-weight: 500;
   transition: transform 140ms var(--ease), opacity 140ms var(--ease);
 }
 .start:active { transform: scale(0.97); }
@@ -89,108 +144,126 @@ canvas {
 }
 
 .readout {
-  position: absolute; left: 22px; bottom: 20px;
-  display: flex; align-items: baseline; gap: 13px;
+  position: absolute; left: 1.38rem; bottom: 1.25rem;
+  display: flex; align-items: baseline; gap: 0.81rem;
 }
 .readout .glyph {
-  font-size: 60px; font-weight: 600; line-height: 1;
+  font-size: 3.75rem; font-weight: 600; line-height: 1;
   letter-spacing: -0.03em; color: var(--warm);
 }
-.readout .pct { font-size: 15px; color: var(--cool); }
+.readout .pct { font-size: 0.94rem; color: var(--cool); }
 .readout.unsure .glyph { color: var(--dim); }
 
 .hold {
   position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
-  background: var(--brass); border-radius: 0 0 14px 14px;
+  background: var(--brass); border-radius: 0 0 var(--round) var(--round);
   transform-origin: left; transform: scaleX(0);
   transition: transform 90ms linear;
 }
 
 .target {
   background: var(--surface); border: 1px solid var(--hair);
-  border-radius: 14px; padding: 22px; text-align: center;
+  border-radius: var(--round); padding: 1.63rem 1.38rem 1.38rem;
+  text-align: center; height: 100%;
+  display: flex; flex-direction: column; justify-content: space-between;
+  transform: translateY(calc(var(--near, 0) * -0.25rem));
+  transition: border-color 180ms ease, transform 150ms var(--ease);
 }
-.target img { width: 100%; height: 152px; object-fit: contain; filter: invert(1); }
-.target .name { font-size: 27px; font-weight: 600; margin-top: 12px; letter-spacing: -0.02em; }
-.target .hint { font-size: 13px; color: var(--cool); }
-.target .gap { font-size: 13px; color: var(--dim); padding: 62px 0; }
+.target .eyebrow { font-size: 0.69rem; letter-spacing: 0.14em;
+                   text-transform: uppercase; color: var(--brass); }
+.target img { width: 100%; height: 13rem; object-fit: contain; filter: invert(1); }
+.target .name { font-size: 2.13rem; font-weight: 600;
+                letter-spacing: -0.02em; line-height: 1.1; }
+.target .hint { font-size: 0.81rem; color: var(--cool); }
+.target .gap { font-size: 0.81rem; color: var(--dim); margin: auto 0; }
 
-.strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 26px; }
+.strip { display: flex; flex-wrap: wrap; gap: 0.38rem; margin-top: 1.63rem; }
 
 .key {
-  width: 37px; height: 37px; border-radius: 9px;
-  font-size: 15px; font-weight: 500; color: var(--cool);
+  width: 2.31rem; height: 2.31rem; border-radius: 0.56rem;
+  font-size: 0.94rem; font-weight: 500; color: var(--cool);
   border: 1px solid transparent;
   transition: background-color 130ms ease, color 130ms ease, border-color 130ms ease;
 }
-.key.picked { border-color: var(--hair-strong); color: var(--warm); }
+.key.picked { border-color: var(--hair-lit); color: var(--warm); }
 .key.seen { background: var(--brass); color: var(--void); border-color: var(--brass); }
-.key.off { color: var(--dim); cursor: default; }
+.key.off { color: var(--dim); cursor: default;
+           text-decoration: line-through; text-decoration-thickness: 1px; }
 .key:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) {
   .key:not(.off):hover { background: var(--raised); color: var(--warm); }
 }
 
-.note { font-size: 13px; color: var(--cool); margin-top: 16px; }
+.note { font-size: 0.81rem; color: var(--cool); margin-top: 1rem; }
 
-.output { margin-top: 28px; display: none; }
+.output { margin-top: 1.75rem; display: none; }
 .output.on { display: block; }
 .output .text {
-  font-size: 36px; font-weight: 500; letter-spacing: 0.14em;
-  min-height: 48px; word-break: break-all;
+  font-size: 2.25rem; font-weight: 500; letter-spacing: 0.14em;
+  min-height: 3rem; word-break: break-all;
 }
 
-.tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.tools { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
 .tool {
-  font-size: 13px; padding: 8px 17px;
+  font-size: 0.81rem; padding: 0.5rem 1.06rem;
   border: 1px solid var(--hair); border-radius: 999px; color: var(--cool);
   transition: border-color 130ms ease, color 130ms ease, transform 130ms var(--ease);
 }
 .tool:active { transform: scale(0.96); }
 .tool:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) {
-  .tool:hover { border-color: var(--hair-strong); color: var(--warm); }
+  .tool:hover { border-color: var(--hair-lit); color: var(--warm); }
 }
 
 /* ---------- content ---------- */
 
-section.band { border-top: 1px solid var(--hair); padding-top: 44px; margin-top: 64px; }
+section.band { border-top: 1px solid var(--hair); padding-top: 2.75rem; margin-top: 4rem; }
 
-h2 { font-size: 13px; font-weight: 500; color: var(--cool); margin-bottom: 30px; }
+h2 { font-size: 0.81rem; font-weight: 500; color: var(--cool); margin-bottom: 1.88rem; }
 
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; }
-.stat .n { font-size: 46px; font-weight: 600; letter-spacing: -0.035em;
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.63rem; }
+.stat .n { font-size: 2.88rem; font-weight: 600; letter-spacing: -0.035em;
            color: var(--brass); line-height: 1.05; }
-.stat .l { font-size: 14px; color: var(--cool); margin-top: 8px; }
+.stat .l { font-size: 0.88rem; color: var(--cool); margin-top: 0.5rem; }
 
-.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
-.step { border-top: 1px solid var(--hair-strong); padding-top: 14px; }
-.step .k { font-size: 13px; color: var(--brass); }
-.step .t { font-weight: 500; margin-top: 5px; }
-.step .d { font-size: 14px; color: var(--cool); margin-top: 7px; }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+.step { border-top: 1px solid var(--hair-lit); padding-top: 0.88rem; }
+.step .k { font-size: 0.81rem; color: var(--brass); }
+.step .t { font-weight: 500; margin-top: 0.31rem; }
+.step .d { font-size: 0.88rem; color: var(--cool); margin-top: 0.44rem; }
 
-.limits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
-.limit { font-size: 14px; color: var(--cool); }
-.limit b { display: block; color: var(--warm); font-weight: 500; margin-bottom: 5px; }
+.limits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.63rem; }
+.limit { font-size: 0.88rem; color: var(--cool); }
+.limit b { display: block; color: var(--warm); font-weight: 500; margin-bottom: 0.31rem; }
 
-footer { margin-top: 64px; padding: 28px 0 64px; border-top: 1px solid var(--hair);
-         font-size: 14px; color: var(--cool); }
+footer { margin-top: 4rem; padding: 1.75rem 0 4rem; border-top: 1px solid var(--hair);
+         font-size: 0.88rem; color: var(--cool); }
 footer a { text-decoration: underline; text-underline-offset: 3px; }
 
 @media (max-width: 860px) {
+  .bg .motif { top: 6%; right: -14vw; font-size: 40vw; }
   .top { grid-template-columns: 1fr; }
-  .target { display: flex; align-items: center; gap: 20px; text-align: left; }
-  .target img { width: 94px; height: 94px; }
-  .target .gap { padding: 28px 0; }
+  .target { flex-direction: row; align-items: center; gap: 1.25rem; text-align: left;
+            padding: 1.25rem; height: auto; justify-content: flex-start; }
+  .target img { width: 7rem; height: 7rem; flex: none; }
+  .target .eyebrow { display: none; }
+  .target .gap { margin: 0; padding: 1.38rem 0; }
   .stats, .steps, .limits { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .target { transform: none !important; }
   * { transition-duration: 1ms !important; }
 }
 </style>
 </head>
 <body>
+
+<div class="bg" aria-hidden="true">
+  <div class="orb"></div>
+  <div class="motif">24</div>
+  <div class="vignette"></div>
+</div>
 
 <nav>
   <div class="row">
@@ -216,10 +289,10 @@ footer a { text-decoration: underline; text-underline-offset: 3px; }
       <div class="hold" id="hold"></div>
       <div class="gate" id="gate">
         <button class="start" id="start" disabled>Loading the model…</button>
-        <p class="why">Your browser will ask for camera access. Nothing is uploaded or recorded.</p>
+        <p class="why" id="why">Your browser will ask for camera access. Nothing is uploaded or recorded.</p>
       </div>
     </div>
-    <div class="target" id="target"></div>
+    <div class="target glow" id="target"></div>
   </div>
 
   <div class="strip" id="strip"></div>
@@ -283,9 +356,12 @@ import { FilesetResolver, HandLandmarker }
 const CONFIDENCE_THRESHOLD = 0.60;
 const SMOOTHING_WINDOW = 7;
 const HOLD_FRAMES = 15;
+const REACH = 170;
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const MOVING = ["J", "Z"];
+
+const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -299,6 +375,71 @@ const outputEl = document.getElementById("output");
 const textEl = document.getElementById("text");
 const startBtn = document.getElementById("start");
 const gate = document.getElementById("gate");
+const whyEl = document.getElementById("why");
+
+/* ---------- proximity ---------- */
+
+const surfaces = [...document.querySelectorAll(".glow")];
+
+let surfaceBoxes = [];
+let stale = true;
+let surfaceQueued = false;
+let pointerX = -99999, pointerY = -99999;
+
+function measureSurfaces() {
+  const sx = window.scrollX, sy = window.scrollY;
+  surfaceBoxes = surfaces.map(el => {
+    const r = el.getBoundingClientRect();
+    return { l: r.left + sx, t: r.top + sy, r: r.right + sx, b: r.bottom + sy };
+  });
+  stale = false;
+}
+
+function paintSurfaces() {
+  surfaceQueued = false;
+  if (stale) measureSurfaces();
+
+  const x = pointerX + window.scrollX;
+  const y = pointerY + window.scrollY;
+
+  for (let i = 0; i < surfaces.length; i++) {
+    const s = surfaceBoxes[i];
+    const cx = x < s.l ? s.l : (x > s.r ? s.r : x);
+    const cy = y < s.t ? s.t : (y > s.b ? s.b : y);
+    const gap = Math.hypot(x - cx, y - cy);
+    const near = gap >= REACH ? 0 : 1 - gap / REACH;
+
+    const el = surfaces[i];
+    el.style.setProperty("--near", near.toFixed(3));
+
+    if (near > 0) {
+      el.style.setProperty("--mx", `${x - s.l}px`);
+      el.style.setProperty("--my", `${y - s.t}px`);
+    }
+  }
+}
+
+function requestSurfaces() {
+  if (!surfaceQueued) {
+    surfaceQueued = true;
+    requestAnimationFrame(paintSurfaces);
+  }
+}
+
+function markStale() { stale = true; requestSurfaces(); }
+
+if (surfaces.length && !calm) {
+  window.addEventListener("pointermove", (e) => {
+    pointerX = e.clientX;
+    pointerY = e.clientY;
+    requestSurfaces();
+  });
+  window.addEventListener("scroll", markStale, { passive: true });
+  window.addEventListener("resize", markStale);
+  window.addEventListener("load", markStale);
+}
+
+/* ---------- pipeline ---------- */
 
 function normalizeLandmarks(row) {
   const points = [];
@@ -397,17 +538,26 @@ function drawStrip() {
 function drawTarget() {
   if (known.has(picked)) {
     targetEl.innerHTML =
+      `<div class="eyebrow">The shape to make</div>` +
       `<img src="letters/${picked}.svg" alt="handshape for ${picked}">` +
       `<div><div class="name">${picked}</div>` +
       `<div class="hint">Copy this shape</div></div>`;
   } else {
     targetEl.innerHTML = `<div class="gap">No drawing for ${picked}</div>`;
   }
+  markStale();
 }
 
 function drawText() {
   outputEl.classList.toggle("on", sentence.length > 0);
   textEl.textContent = sentence.slice(-24);
+}
+
+function fail(message) {
+  startBtn.disabled = true;
+  startBtn.textContent = "Not available";
+  whyEl.textContent = message;
+  whyEl.classList.add("bad");
 }
 
 stripEl.addEventListener("click", (e) => {
@@ -421,32 +571,55 @@ stripEl.addEventListener("click", (e) => {
 drawStrip();
 drawText();
 
-async function boot() {
-  forest = await (await fetch("model.json")).json();
+async function findDrawings() {
+  const still = ALPHABET.filter(c => !MOVING.includes(c));
 
-  for (const c of ALPHABET) {
-    if (MOVING.includes(c)) continue;
+  const checks = still.map(async (c) => {
     try {
       const res = await fetch(`letters/${c}.svg`, { method: "HEAD" });
-      if (res.ok) known.add(c);
-    } catch (e) { /* ignore */ }
-  }
+      return res.ok ? c : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
+  const found = await Promise.all(checks);
+  known = new Set(found.filter(Boolean));
+}
+
+async function boot() {
+  await findDrawings();
   drawTarget();
 
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm"
-  );
+  try {
+    const res = await fetch("model.json");
+    if (!res.ok) throw new Error(`model.json returned ${res.status}`);
+    forest = await res.json();
+  } catch (e) {
+    console.error(e);
+    fail("The model file could not be loaded. Serve this page over http, not by opening the file directly.");
+    return;
+  }
 
-  handLandmarker = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-    },
-    runningMode: "VIDEO",
-    numHands: 1,
-    minHandDetectionConfidence: 0.7,
-    minTrackingConfidence: 0.5
-  });
+  try {
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm"
+    );
+
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+      },
+      runningMode: "VIDEO",
+      numHands: 1,
+      minHandDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.5
+    });
+  } catch (e) {
+    console.error(e);
+    fail("The hand tracker could not be downloaded. Check your connection and reload.");
+    return;
+  }
 
   startBtn.disabled = false;
   startBtn.textContent = "Turn on the camera";
