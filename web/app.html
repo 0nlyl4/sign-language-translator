@@ -145,11 +145,19 @@ canvas {
 
 .readout {
   position: absolute; left: 1.38rem; bottom: 1.25rem;
-  display: flex; align-items: baseline; gap: 0.81rem;
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+.readout .label {
+  font-size: 0.69rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--dim);
+}
+.readout .label::before {
+  content: "● ";
+  color: var(--brass);
 }
 .readout .glyph {
   font-size: 3.75rem; font-weight: 600; line-height: 1;
-  letter-spacing: -0.03em; color: var(--warm);
+  letter-spacing: -0.03em; color: var(--brass);
 }
 .readout .pct { font-size: 0.94rem; color: var(--cool); }
 .readout.unsure .glyph { color: var(--dim); }
@@ -285,7 +293,7 @@ footer a { text-decoration: underline; text-underline-offset: 3px; }
   <div class="top">
     <div class="viewer">
       <canvas id="canvas" width="640" height="480"></canvas>
-      <div class="readout" id="readout"><span class="glyph"></span><span class="pct"></span></div>
+      <div class="readout" id="readout"><span class="label">Detected</span><span class="glyph"></span><span class="pct"></span></div>
       <div class="hold" id="hold"></div>
       <div class="gate" id="gate">
         <button class="start" id="start" disabled>Loading the model…</button>
