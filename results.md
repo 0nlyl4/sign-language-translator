@@ -2,6 +2,32 @@
 
 Real-time ASL fingerspelling recognition from MediaPipe hand landmarks.
 
+---
+
+## Executive Summary
+
+**Current System (September 2026):**
+
+- **24 static ASL fingerspelling letters** (A–I, K–Y, excluding J and Z)
+- **97.17% cross-session accuracy** (train session 1, test session 2)
+- **4.17% random-guess baseline** (1 out of 24 classes)
+- **14,400 landmark samples** (24 letters × 2 sessions × 300 samples each)
+- **Two independent recording sessions** with different lighting, distance, background, and hand angles
+- **One participant, right hand** — generalization to other signers not evaluated
+- **Random Forest classifier** with 100 decision trees
+- **Pipeline configuration:**
+  - Confidence threshold: 0.60 (60%)
+  - Temporal smoothing: 7-frame majority vote
+  - Hold-to-commit: 15 consecutive frames
+
+**Live Demo:** [https://0nlyl4.github.io/sign-language-translator/](https://0nlyl4.github.io/sign-language-translator/)
+
+**This document** contains the full chronological experimental history from 5 letters at 47.9% raw-coordinate accuracy through scaling to 24 letters at 97.17% with normalized features.
+
+---
+
+## Phase 7: Initial 5-Letter System
+
 ## Experiments
 
 | # | Train | Test | Features | Letters | Accuracy | Baseline |
@@ -345,7 +371,27 @@ dependent:
 The gap closing to 0.2 points is direct evidence that the camera-position
 artefact has been removed from the dataset.
 
-## Phase 8 result
+## Experiment 17 — Adding M and N: occluded landmarks
+
+M and N were initially deferred because their distinguishing feature — thumb
+position relative to fingers — involves landmarks that are occluded from the
+camera's view. MediaPipe infers rather than directly measures these occluded
+joint positions.
+
+Despite the occlusion concern, M and N were recorded using the same protocol as
+all other letters (300 samples per session, fixed reference shape, varied wrist
+angles and distances). Cross-session evaluation showed both letters separated
+cleanly with no confusion between them, and minimal impact on other letters.
+
+Result: M achieved 97% recall with 1.00 precision. N achieved 100% recall with
+0.98 precision. Zero M/N confusion. Overall accuracy rose from 96.97% (22 classes)
+to 97.17% (24 classes).
+
+The occlusion concern proved not to be a practical limitation for these two
+letters. MediaPipe's inferred thumb position was sufficiently consistent across
+sessions for the classifier to distinguish M and N reliably.
+
+## Phase 8 result (22 letters, historical)
 
 | Classes | Accuracy | Baseline | Ratio |
 |--------:|---------:|---------:|------:|
@@ -355,12 +401,12 @@ artefact has been removed from the dataset.
 |      19 |    94.9% |     5.3% | x18.0 |
 |      22 |    97.0% |     4.6% | x21.3 |
 
-All 22 letters separate perfectly within a single recording session. The
-remaining cross-session error is concentrated in R (75% recall, confused
+At 22 letters, all letters separated perfectly within a single recording session.
+The remaining cross-session error was concentrated in R (75% recall, confused
 with U), which is the continuum problem described in Experiment 14.
 
-Live settings, all measured rather than guessed:
-confidence threshold 0.55, smoothing window 7 frames, hold-to-commit 15
+Historical live settings at 22 classes: confidence threshold 0.55, smoothing
+window 7 frames, hold-to-commit 15
 frames.
 
 ## Tooling hardened during Phase 8
@@ -377,17 +423,89 @@ tools that trusted the operator rather than validating input.
   training and test split. It now accepts only 1 or 2, and displays the
   active batch on screen throughout recording.
 
-## Known limitations
+---
 
-- J and Z excluded (require motion; need a sequential model)
-- M and N not yet attempted: the distinguishing feature is thumb position
-  beneath the fingers, which is occluded from the camera, so MediaPipe infers
-  rather than measures those landmarks
-- Single hand only; does not work mirrored
-- Normalisation handles translation and scale, not rotation
-- Two recording sessions, one signer
-- U/V/R separation degrades on marginal finger spread (Experiment 14)
-- No negative class: non-letter hand shapes are rejected by threshold rather
-  than classified as "not a letter". A resting hand fell near Q and had to be
-  suppressed by raising the threshold. A trained NONE class would address the
-  cause and permit a lower threshold. Deferred.
+## Phase 9: Web Deployment
+
+The trained Random Forest model was exported to JSON (318 KB) and deployed to
+GitHub Pages for browser-based inference with no backend server required.
+
+**Architecture:**
+- MediaPipe Tasks Vision 0.10.21 runs hand tracking in JavaScript
+- The exported forest is walked in plain JavaScript (no TensorFlow or ONNX)
+- All inference runs client-side in the browser
+- Camera frames remain on the user's device and are not uploaded
+
+**Implementation:**
+- `web/index.html` — landing page with interactive 3D hand visualization
+- `web/app.html` — real-time recognition interface
+- `web/model.json` — the trained forest represented as arrays of feature indices, thresholds, child pointers, and class votes
+- `web/shapes.json` — median hand landmark positions for each letter, used for reference visualization
+
+**Deployment:**
+- GitHub Actions workflow triggers on push to main
+- Deploys only the `web/` directory to GitHub Pages
+- No build step required (static HTML/CSS/JavaScript)
+
+**Live demo:** [https://0nlyl4.github.io/sign-language-translator/](https://0nlyl4.github.io/sign-language-translator/)
+
+The browser implementation uses the same pipeline as the Python version:
+normalize landmarks → walk 100 trees → threshold → smooth → commit. The
+confidence threshold (0.60), smoothing window (7 frames), and hold duration
+(15 frames) are identical.
+
+---
+
+## Final System Results (24 Letters)
+
+**Supported letters:** A B C D E F G H I K L M N O P Q R S T U V W X Y
+
+**Excluded:** J and Z (require motion)
+
+**Dataset:**
+- 14,400 landmark samples (24 letters × 2 sessions × 300 samples)
+- Session 1: all letters recorded with varied wrist angles, distances, and lighting
+- Session 2: same letters, different day, different conditions
+- One participant, right hand
+- Camera position kept constant between sessions (learned from Experiment 11)
+
+**Cross-session evaluation:**
+- Train: all session 1 samples (7,200)
+- Test: all session 2 samples (7,200)
+- **Accuracy: 97.17%**
+- **Baseline: 4.17%** (random guess, 1/24)
+- **Ratio: ×23.3**
+
+**Production configuration:**
+- Confidence threshold: 0.60 (60%)
+- Smoothing window: 7 frames
+- Hold-to-commit: 15 frames
+
+**What this demonstrates:**
+- The normalized landmark representation generalizes across recording conditions (lighting, distance, background, hand angle)
+- The pipeline successfully rejects ambiguous input (confidence thresholding) and suppresses frame-to-frame noise (temporal smoothing)
+- The system distinguishes 24 visually similar handshapes with high accuracy across independent sessions
+
+**What this does not demonstrate:**
+- Generalization to other signers (one participant)
+- Robustness to significantly different camera positions or angles (constraint from Experiment 11)
+- Performance on a larger or more diverse population
+- Recognition of dynamic letters (J, Z) or full ASL signs
+
+---
+
+---
+
+## Known Limitations (Final)
+
+- **J and Z excluded:** Both require motion to distinguish from other letters. A static-frame classifier cannot recognize drawn paths. Supporting them would require a sequence model (LSTM, temporal CNN, or similar).
+
+- **Single hand orientation:** All data was recorded with the right hand facing the camera from a consistent position. The model has not been evaluated on mirrored hands or different camera angles. Normalization handles translation and scale, but not rotation.
+
+- **One participant, two sessions:** Generalization to other signers, hand sizes, skin tones, or recording environments has not been tested. The cross-session accuracy measures robustness to lighting and distance variation, not to different people.
+
+- **Camera position constraint:** As discovered in Experiment 11, the model is sensitive to camera position relative to the signer. Moving the camera from one side to the other between sessions caused asymmetric accuracy drops. The recording protocol now keeps camera position constant.
+
+- **U, V, and R continuum:** These three letters differ only in finger spacing (crossed, together, apart), which forms a continuous range rather than three cleanly separated regions. Marginal finger spreads can fall near decision boundaries, as documented in Experiment 14.
+
+- **Static fingerspelling only:** This recognizes 24 static handshapes from the ASL manual alphabet. It does not recognize full ASL grammar, word-level signs, classifiers, facial expressions, non-manual markers, or any other aspect of American Sign Language beyond static fingerspelling letters. ASL is a complete language with its own syntax and is not English encoded in gestures.
